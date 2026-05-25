@@ -1,93 +1,94 @@
-# Multi-Agent AI Finance Stock Analyzer
+# Flowzint Finance AI
 
-## Project Description
-Build a multi-agent AI-powered finance assistant that analyzes stocks and companies using:
-- real-time news
-- financial data
-- technical analysis
-- market sentiment
-- risk analysis
+Multi-agent AI finance assistant for analyzing stocks and companies with market data, technical indicators, news, sentiment, risk scoring, and portfolio-fit guidance.
 
-Users can ask questions like:
-- "Analyze NVIDIA stock"
-- "Should I invest in Tesla?"
-- "Compare Apple vs Microsoft"
+## What Is Built
 
-The system uses multiple AI agents coordinated by a Master Agent to generate intelligent investment insights.
+- **Frontend:** Next.js, React, TailwindCSS analysis console.
+- **Backend:** FastAPI API with a CrewAI master agent and six specialist agents.
+- **Agents:** News, fundamentals, technicals, sentiment, risk, and portfolio advisor (using deep prompt engineering to simulate a professional investment committee).
+- **AI Framework:** CrewAI coordinates the specialist agents for final report synthesis when an LLM key is configured.
+- **Data:** Uses `yfinance` and Yahoo Finance RSS by default, with Tavily support when an API key is configured.
+- **Output:** Buy/Hold/Sell suggestion, agent evidence, risk score, thesis, action items, and recent headlines.
 
----
+## Project Structure
 
-# Architecture
+```text
+backend/
+  app/
+    agents/       # Master and specialist agents
+    crews/        # CrewAI crew definitions
+    core/         # Settings
+    models/       # API contracts
+    services/     # Finance and news data adapters
+frontend/
+  app/            # Next.js app router
+  components/     # Report UI components
+  lib/            # API client and shared types
+```
 
-## Master Agent
-Main orchestrator that:
-- understands user query
-- delegates tasks to sub agents
-- combines responses
-- generates final investment report
+> **Note for AI Coding Assistants**: Please see [`AGENTS.md`](./AGENTS.md) for the global AI agent architectural context.
 
----
+## Backend Setup
 
-# Sub Agents
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
 
-## News Agent
-- searches latest finance news
-- summarizes market events
+The API will be available at `http://localhost:8000`.
 
-## Fundamental Analysis Agent
-- analyzes revenue, profit, debt, P/E ratio, growth
+## Frontend Setup
 
-## Technical Analysis Agent
-- analyzes RSI, MACD, trends, support/resistance
+```bash
+cd frontend
+npm install
+copy .env.local.example .env.local
+npm run dev
+```
 
-## Sentiment Analysis Agent
-- analyzes Reddit, Twitter/X, market sentiment
+The app will be available at `http://localhost:3000`.
 
-## Risk Analysis Agent
-- detects volatility, competition, investment risks
+## Environment Variables
 
-## Portfolio Advisor Agent
-- provides personalized investment suggestions
+Backend:
 
----
+- `TAVILY_API_KEY`: optional, enables richer real-time finance news search.
+- `OPENAI_API_KEY`: reserved for future LLM summarization.
+- `GEMINI_API_KEY`: optional alternative LLM key for CrewAI-backed synthesis.
+- `CREWAI_MODEL`: model used by CrewAI, default `gpt-4o-mini`.
+- `CORS_ORIGINS`: comma-separated frontend origins.
 
-# Workflow
+Frontend:
 
-User Query
-→ Master Agent
-→ Sub Agents perform analysis
-→ Outputs combined
-→ Final AI investment report generated
+- `NEXT_PUBLIC_API_URL`: backend URL, default `http://localhost:8000`.
 
----
+## Example Queries
 
-# Tech Stack
+- `Analyze NVIDIA stock`
+- `Should I invest in Tesla?`
+- `Compare Apple vs Microsoft`
+- `Analyze AMD and NVDA`
 
-## Frontend
-- Next.js
-- React
-- TailwindCSS
+## API
 
-## Backend
-- FastAPI
+### `POST /analyze`
 
-## AI Framework
-- CrewAI
+```json
+{
+  "query": "Compare Apple vs Microsoft",
+  "risk_tolerance": "medium",
+  "horizon": "long",
+  "portfolio_context": "I already hold large-cap tech."
+}
+```
 
-## APIs & Tools
-- OpenAI/Gemini API
-- Yahoo Finance API
-- Tavily Search API
-- Firecrawl/Playwright
+Returns a master-agent summary plus one report per detected ticker.
 
----
+## Notes
 
-# Final Output
-
-The AI should provide:
-- Buy/Sell/Hold suggestion
-- Financial analysis
-- Technical analysis
-- Sentiment analysis
-- Risk score
-- AI-generated investment insights
+This is research support, not financial advice. Live data depends on upstream providers and API availability. If live requests or CrewAI credentials are unavailable, the backend returns deterministic fallback analysis so the demo remains usable offline.
