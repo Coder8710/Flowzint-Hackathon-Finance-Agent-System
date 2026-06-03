@@ -25,12 +25,18 @@ master_agent = MasterAgent()
 @app.on_event("startup")
 async def startup_event():
     """Log configuration status on startup."""
+    # Clear cached settings to ensure fresh .env values are read on every restart
+    get_settings.cache_clear()
+    settings = get_settings()
     logger.info("Starting %s in %s mode", settings.app_name, settings.environment)
-    if not settings.openai_api_key and not settings.gemini_api_key:
+    if not settings.has_llm_key:
         logger.warning(
-            "No LLM API key configured (OPENAI_API_KEY / GEMINI_API_KEY). "
+            "No LLM provider configured. "
+            "Set OPENAI_API_KEY, GEMINI_API_KEY, or AWS credentials for Bedrock. "
             "CrewAI synthesis will fall back to deterministic scoring."
         )
+    else:
+        logger.info("LLM provider configured: %s", settings.crewai_model)
     if not settings.tavily_api_key:
         logger.warning(
             "TAVILY_API_KEY not set. News search will fall back to Yahoo Finance RSS."

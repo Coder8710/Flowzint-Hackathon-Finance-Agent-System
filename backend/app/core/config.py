@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     tavily_api_key: str | None = None
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
-    crewai_model: str = "gpt-4o-mini"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_region_name: str | None = "us-east-1"
+    crewai_model: str = "bedrock/amazon.nova-pro-v1:0"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -30,8 +33,8 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_key(self) -> bool:
-        """Check if at least one LLM API key is configured."""
-        return bool(self.openai_api_key or self.gemini_api_key)
+        """Check if at least one LLM API key is configured or default AWS credentials are used."""
+        return bool(self.openai_api_key or self.gemini_api_key or (self.aws_access_key_id and self.aws_secret_access_key) or self.crewai_model.startswith("bedrock/"))
 
     @property
     def has_news_key(self) -> bool:

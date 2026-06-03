@@ -28,18 +28,25 @@ class FinanceCrew:
         horizon: str,
         portfolio_context: str | None,
     ) -> dict[str, Any]:
-        if not (self.settings.openai_api_key or self.settings.gemini_api_key):
-            raise CrewAIUnavailableError("CrewAI requires OPENAI_API_KEY or GEMINI_API_KEY.")
+        if not (self.settings.openai_api_key or self.settings.gemini_api_key or (self.settings.aws_access_key_id and self.settings.aws_secret_access_key) or self.settings.crewai_model.startswith("bedrock/")):
+            raise CrewAIUnavailableError("CrewAI requires OPENAI_API_KEY, GEMINI_API_KEY, explicit AWS keys, or AWS CLI auth for bedrock.")
 
         if self.settings.openai_api_key:
             os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key
         if self.settings.gemini_api_key:
             os.environ["GEMINI_API_KEY"] = self.settings.gemini_api_key
+        if self.settings.aws_access_key_id:
+            os.environ["AWS_ACCESS_KEY_ID"] = self.settings.aws_access_key_id
+        if self.settings.aws_secret_access_key:
+            os.environ["AWS_SECRET_ACCESS_KEY"] = self.settings.aws_secret_access_key
+        if self.settings.aws_region_name:
+            os.environ["AWS_REGION_NAME"] = self.settings.aws_region_name
+        if self.settings.tavily_api_key:
+            os.environ["TAVILY_API_KEY"] = self.settings.tavily_api_key
 
         try:
             from crewai import Agent, Crew, Process, Task
-            from crewai_tools import ScrapeWebsiteTool
-            from app.tools.search_tools import TavilySearchTool
+            from crewai_tools import ScrapeWebsiteTool, TavilySearchTool
         except Exception as exc:
             raise CrewAIUnavailableError(f"CrewAI import failed: {exc}") from exc
             
@@ -65,7 +72,7 @@ class FinanceCrew:
                 "You use web search tools relentlessly to trace the origin of market rumors and confirm factual corporate developments."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
             tools=[search_tool, scrape_tool],
         )
@@ -79,7 +86,7 @@ class FinanceCrew:
                 "You browse SEC filings and earnings call transcripts to find discrepancies between market price and intrinsic value."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
             tools=[search_tool, scrape_tool],
         )
@@ -92,7 +99,7 @@ class FinanceCrew:
                 "Your objective is to assess the current market trend and judge the timing risk of initiating a position today."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
         )
         sentiment_agent = Agent(
@@ -103,7 +110,7 @@ class FinanceCrew:
                 "You track whether the market is overly euphoric or deeply pessimistic regarding the asset, looking for contrarian opportunities."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
         )
         risk_agent = Agent(
@@ -115,7 +122,7 @@ class FinanceCrew:
                 "If an investment looks too good to be true, it is your job to find the hidden trapdoor."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
         )
         portfolio_agent = Agent(
@@ -126,7 +133,7 @@ class FinanceCrew:
                 "You match volatile, high-growth stocks with long-horizon, high-risk clients, and recommend against them for conservative clients."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=False,
         )
         master_agent = Agent(
@@ -137,7 +144,7 @@ class FinanceCrew:
                 "and you make the hard final call: Buy, Hold, or Sell. You are strict about output formats and never produce markdown wrappers, only pure JSON."
             ),
             llm=llm,
-            verbose=False,
+            verbose=True,
             allow_delegation=True,
         )
 
@@ -175,12 +182,12 @@ class FinanceCrew:
             ),
             Task(
                 description=(
-                    f"{context}\n\nTask: As Committee Chair, review all specialist findings. You MUST make a final decision. "
-                    "Return valid JSON ONLY. DO NOT wrap the JSON in ```json blocks. The JSON must exactly match this schema: "
+                    f"{context}\n\nFinal Task: As Investment Committee Chair, you have received all specialist reports above. "
+                    f"Synthesize them into a final verdict for {snapshot.symbol}. You MUST make a decisive final call. "
+                    "Return ONLY valid JSON with no markdown wrappers. The JSON must exactly match this schema: "
                     '{"recommendation": "Buy|Hold|Sell", "target_bias": "String describing upside/downside", "summary": "1 paragraph executive summary", "thesis": ["point 1", "point 2", "point 3"], "action_items": ["action 1", "action 2", "action 3"]}'
                 ),
-                expected_output="A raw, parsable JSON object containing the final investment committee decision with keys: recommendation, target_bias, summary, thesis, action_items.",
-                agent=master_agent,
+                expected_output="A raw, parsable JSON object with keys: recommendation, target_bias, summary, thesis, action_items.",
             ),
         ]
 
@@ -196,9 +203,15 @@ class FinanceCrew:
             tasks=tasks,
             process=Process.hierarchical,
             manager_agent=master_agent,
-            verbose=False,
+            verbose=True,
+            output_log_file="crew_execution.log",
         )
-        result = crew.kickoff()
+        try:
+            result = crew.kickoff()
+        except Exception as exc:
+            raise CrewAIUnavailableError(
+                f"CrewAI crew execution failed: {type(exc).__name__}: {exc}"
+            ) from exc
         return _parse_crewai_json(str(result))
 
 
