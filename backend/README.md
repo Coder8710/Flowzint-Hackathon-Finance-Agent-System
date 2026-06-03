@@ -17,4 +17,8 @@ uvicorn app.main:app --reload --port 8000
 - `GET /health`
 - `POST /analyze`
 
+## Data Sources
+- **Yahoo Finance (`yfinance`)**: Used to fetch real-time market snapshots and historical chart data. The backend uses the latest `yfinance` with `curl_cffi` to bypass Yahoo's strict rate limits.
+- **Tavily Search**: Used by the CrewAI agents to actively search the web for breaking news and qualitative context.
+
 > **Note for AI Coding Assistants**: Please see [`AGENTS.md`](./AGENTS.md) for the backend AI agent architectural context.
