@@ -76,9 +76,18 @@ class FinanceCrew:
         from app.agents.news import create_news_agent
         from app.agents.sentiment import create_sentiment_agent
         from app.agents.technical import create_technical_agent
+        from app.agents.risk import create_risk_agent
+        from app.agents.portfolio import create_portfolio_agent
+        from app.agents.master import create_master_agent
 
-        search_tool = TavilySearchTool()
-        scrape_tool = ScrapeWebsiteTool()
+        if not self.settings.tavily_api_key and not os.environ.get("TAVILY_API_KEY"):
+            raise CrewAIUnavailableError("Tavily API key is missing. Live search is unavailable.")
+
+        try:
+            search_tool = TavilySearchTool()
+            scrape_tool = ScrapeWebsiteTool()
+        except Exception as exc:
+            raise CrewAIUnavailableError(f"Failed to initialize search/scrape tools: {exc}") from exc
         llm = self.settings.crewai_model
 
         logger.info("Building production CrewAI agents for %s", snapshot.symbol)
@@ -90,55 +99,9 @@ class FinanceCrew:
         fundamental_agent = create_fundamental_agent(llm, search_tool, scrape_tool)
         technical_agent = create_technical_agent(llm, search_tool)
         sentiment_agent = create_sentiment_agent(llm, search_tool)
-
-        # -----------------------------------------------------------------
-        # Non-upgraded agents (risk, portfolio, master) — apply production kwargs
-        # -----------------------------------------------------------------
-        _PROD_KWARGS = dict(
-            verbose=False,
-            memory=True,
-            max_iter=15,
-            max_rpm=10,
-            cache=True,
-            allow_delegation=False,
-        )
-
-        risk_agent = Agent(
-            role="Chief Risk Officer (CRO)",
-            goal="Stress-test the investment thesis by identifying severe downside risks, high beta exposure, and catastrophic macro scenarios.",
-            backstory=(
-                "You are a paranoid but highly effective risk manager. Your primary job is capital preservation. "
-                "You constantly ask: 'What is the worst case scenario?' You evaluate debt-to-equity leverage, competitor threats, and systemic risks. "
-                "If an investment looks too good to be true, it is your job to find the hidden trapdoor."
-            ),
-            llm=llm,
-            **_PROD_KWARGS,
-        )
-        portfolio_agent = Agent(
-            role="Private Wealth Portfolio Manager",
-            goal="Translate raw stock analysis into personalized, actionable portfolio sizing advice based on the client's specific risk tolerance and horizon.",
-            backstory=(
-                "You are a fiduciary wealth manager. You never analyze a stock in a vacuum; you only analyze how it fits into a specific human being's portfolio. "
-                "You match volatile, high-growth stocks with long-horizon, high-risk clients, and recommend against them for conservative clients."
-            ),
-            llm=llm,
-            **_PROD_KWARGS,
-        )
-        master_agent = Agent(
-            role="Investment Committee Chair",
-            goal="Synthesize conflicting opinions from the specialist analysts into a unified, decisive, and strictly formatted JSON final verdict.",
-            backstory=(
-                "You are the authoritative voice of the investment committee. You listen to the fundamental analyst, the technician, and the risk officer, "
-                "and you make the hard final call: Buy, Hold, or Sell. You are strict about output formats and never produce markdown wrappers, only pure JSON."
-            ),
-            llm=llm,
-            verbose=False,
-            memory=True,
-            max_iter=15,
-            max_rpm=10,
-            cache=True,
-            allow_delegation=True,  # master delegates to specialists
-        )
+        risk_agent = create_risk_agent(llm, search_tool)
+        portfolio_agent = create_portfolio_agent(llm)
+        master_agent = create_master_agent(llm)
 
         # -----------------------------------------------------------------
         # Evidence payload
@@ -234,14 +197,33 @@ class FinanceCrew:
             context=[news_task, fundamental_task, technical_task],
         )
         risk_task = Task(
-            description=f"{context}\n\nTask: Actively try to destroy the bull thesis. Identify the top 3 ways an investor could lose money holding this stock right now.",
-            expected_output="Three concise bullet points detailing maximum drawdown risks, followed by a '0-100' risk severity score (higher means MORE risky).",
+            description=(
+                f"{context}\n\n"
+                f"Task: Identify the top 3 ways an investor could lose money holding this stock right now. "
+                f"You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+                f"{{\n"
+                f'  "risks": ["risk1", "risk2", "risk3"],\n'
+                f'  "risk_score": X\n'
+                f"}}\n"
+                f"Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+            ),
+            expected_output="A single valid JSON object with keys: risks, risk_score",
             agent=risk_agent,
             async_execution=False,
         )
         portfolio_task = Task(
-            description=f"{context}\n\nTask: Cross-reference the user's profile (Risk Tolerance: {risk_tolerance}, Horizon: {horizon}, Context: {portfolio_context}) with the asset's beta and volatility.",
-            expected_output="Three concise bullet points explaining exactly why this asset does or does not fit the user's specific profile, followed by a '0-100' portfolio fit score.",
+            description=(
+                f"{context}\n\n"
+                f"Task: Cross-reference the user's profile (Risk Tolerance: {risk_tolerance}, Horizon: {horizon}, Context: {portfolio_context}) with the asset's beta and volatility. "
+                f"You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+                f"{{\n"
+                f'  "fit_score": X,\n'
+                f'  "allocation_advice": "allocation advice text",\n'
+                f'  "rationale": ["reason1", "reason2", "reason3"]\n'
+                f"}}\n"
+                f"Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+            ),
+            expected_output="A single valid JSON object with keys: fit_score, allocation_advice, rationale",
             agent=portfolio_agent,
             async_execution=False,
         )
@@ -286,7 +268,36 @@ class FinanceCrew:
             ) from exc
 
         logger.info("CrewAI crew completed for %s", snapshot.symbol)
-        return _parse_crewai_json(str(result))
+
+        specialist_findings = {}
+
+        def try_parse_json(raw: str) -> dict | None:
+            if not raw:
+                return None
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`")
+                cleaned = cleaned.removeprefix("json").strip()
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start >= 0 and end > start:
+                cleaned = cleaned[start : end + 1]
+            try:
+                return json.loads(cleaned)
+            except Exception:
+                return None
+
+        # Capture task outputs
+        specialist_findings["news"] = try_parse_json(news_task.output.raw if hasattr(news_task, 'output') and news_task.output else "")
+        specialist_findings["fundamental"] = try_parse_json(fundamental_task.output.raw if hasattr(fundamental_task, 'output') and fundamental_task.output else "")
+        specialist_findings["technical"] = try_parse_json(technical_task.output.raw if hasattr(technical_task, 'output') and technical_task.output else "")
+        specialist_findings["sentiment"] = try_parse_json(sentiment_task.output.raw if hasattr(sentiment_task, 'output') and sentiment_task.output else "")
+        specialist_findings["risk"] = try_parse_json(risk_task.output.raw if hasattr(risk_task, 'output') and risk_task.output else "")
+        specialist_findings["portfolio"] = try_parse_json(portfolio_task.output.raw if hasattr(portfolio_task, 'output') and portfolio_task.output else "")
+
+        master_parsed = _parse_crewai_json(str(result))
+        master_parsed["specialist_findings"] = {k: v for k, v in specialist_findings.items() if v is not None}
+        return master_parsed
 
 
 def _evidence_payload(

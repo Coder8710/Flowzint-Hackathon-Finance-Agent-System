@@ -1,0 +1,17 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Flowzint Finance AI — Multi-Agent Stock Analyzer",
+  description:
+    "AI-powered multi-agent finance assistant that analyzes stocks using real-time news, fundamentals, technicals, sentiment, and risk analysis. Get Buy/Sell/Hold recommendations with confidence scores.",
+  keywords: ["stock analysis", "AI finance", "investment", "multi-agent", "stock analyzer"],
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="antialiased">{children}</body>
+    </html>
+  );
+}

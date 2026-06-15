@@ -68,10 +68,28 @@ class FundamentalAnalysisAgent:
 
         score = max(0, min(100, score))
         stance = "constructive" if score >= 62 else "cautious" if score <= 42 else "balanced"
+
+        # Calculate dynamic confidence based on available metrics
+        available_metrics = 0
+        if snapshot.pe_ratio is not None: available_metrics += 1
+        if snapshot.revenue_growth is not None: available_metrics += 1
+        if snapshot.profit_margin is not None: available_metrics += 1
+        if snapshot.debt_to_equity is not None: available_metrics += 1
+
+        confidence = 0.5 + (available_metrics * 0.1)
+
+        # Adjust based on extreme metrics
+        if snapshot.pe_ratio is not None and (snapshot.pe_ratio > 80 or snapshot.pe_ratio < 0):
+            confidence -= 0.1
+        if snapshot.profit_margin is not None and snapshot.profit_margin < 0:
+            confidence -= 0.1
+
+        confidence = round(max(0.4, min(0.95, confidence)), 2)
+
         return AgentFinding(
             agent=self.name,
             summary=f"Fundamentals look {stance} with a score of {score}/100.",
-            confidence=0.74,
+            confidence=confidence,
             signals=signals or ["Fundamental metrics were limited, so this agent used available market ratios only."],
             data={
                 "score": score,
