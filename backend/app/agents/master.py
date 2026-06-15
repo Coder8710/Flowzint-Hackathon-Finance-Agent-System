@@ -50,6 +50,25 @@ POPULAR_TICKERS = {
     "SNOWFLAKE": "SNOW",
     "PALANTIR": "PLTR",
     "COINBASE": "COIN",
+    # Indian Tickers
+    "RELIANCE": "RELIANCE.NS",
+    "TCS": "TCS.NS",
+    "INFOSYS": "INFY.NS",
+    "INFY": "INFY.NS",
+    "HDFC": "HDFCBANK.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "ICICI": "ICICIBANK.NS",
+    "ICICIBANK": "ICICIBANK.NS",
+    "SBIN": "SBIN.NS",
+    "SBI": "SBIN.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "WIPRO": "WIPRO.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "ITC": "ITC.NS",
+    "MARUTI": "MARUTI.NS",
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "AIRTEL": "BHARTIARTL.NS",
 }
 
 
@@ -68,7 +87,7 @@ class MasterAgent:
         self.finance_crew = FinanceCrew()
 
     async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
-        symbols = _extract_symbols(request.query)
+        symbols = await _extract_symbols(request.query)
         analyses = await asyncio.gather(*(self._analyze_symbol(symbol, request) for symbol in symbols))
         return AnalysisResponse(
             query=request.query,
@@ -224,13 +243,13 @@ class MasterAgent:
         )
 
 
-def _extract_symbols(query: str) -> list[str]:
+async def _extract_symbols(query: str) -> list[str]:
     """Extract stock ticker symbols from a user query."""
     upper = query.upper()
     discovered: list[str] = []
 
     # Pre-compute all uppercase words in the query once
-    all_uppercase_words = set(re.findall(r"\b[A-Z]{1,5}\b", upper))
+    all_uppercase_words = set(re.findall(r"\b[A-Z0-9.&-]{2,12}(?:\.[A-Z]{2})?\b", upper))
     # Known company names that should NOT be treated as tickers
     company_names = set(POPULAR_TICKERS.keys())
     known_tickers = set(POPULAR_TICKERS.values())
@@ -240,7 +259,7 @@ def _extract_symbols(query: str) -> list[str]:
         if name in upper or ticker in all_uppercase_words:
             discovered.append(ticker)
 
-    # Find additional potential tickers (2-5 uppercase letters)
+    # Find additional potential tickers (2-12 characters)
     # Exclude common English words and known company names
     ignored = {
         "AI", "VS", "AND", "THE", "BUY", "SELL", "HOLD", "STOCK",
@@ -250,13 +269,51 @@ def _extract_symbols(query: str) -> list[str]:
         "INVEST", "COMPARE", "ABOUT", "WITH", "FROM", "INTO",
         "GOOD", "BAD", "BEST", "WORST", "LONG", "SHORT", "TERM",
         "MY", "ME", "WE", "UP", "SO", "NO", "GO", "BE",
-        "ANALYZE",
+        "ANALYZE", "SHARE", "SHARES", "PRICE", "CHART", "REPORT"
     }
     for word in all_uppercase_words:
         if len(word) >= 2 and word not in ignored and word not in company_names and word not in discovered:
             discovered.append(word)
 
     unique = list(dict.fromkeys(discovered))
+
+    # If no popular tickers or direct tickers matched, run a dynamic Yahoo search!
+    if not unique:
+        cleaned = re.sub(r"[^\w\s]", "", query)
+        words = cleaned.split()
+        search_ignored = {
+            "analyze", "analysis", "stock", "stocks", "share", "shares", 
+            "price", "chart", "of", "about", "for", "in", "on", "the", "a", "an",
+            "company", "corporation", "corp", "co", "ltd", "limited", "inc",
+            "what", "is", "are", "trend", "buy", "sell", "hold", "please", "run", 
+            "me", "show", "to", "info", "information", "report"
+        }
+        filtered_words = [w for w in words if w.lower() not in search_ignored]
+        search_query = " ".join(filtered_words)
+
+        if search_query:
+            import httpx
+            from urllib.parse import quote_plus
+            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(search_query)}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            try:
+                async with httpx.AsyncClient(timeout=5) as client:
+                    response = await client.get(url, headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        quotes = data.get("quotes", [])
+                        valid_exchanges = {"NSI", "BSE", "NMS", "NYQ", "ASE"}
+                        for quote in quotes:
+                            symbol = quote.get("symbol")
+                            exch = quote.get("exchange")
+                            if symbol and exch in valid_exchanges:
+                                unique.append(symbol)
+                                break
+            except Exception as e:
+                logger.error("Error searching ticker for %s: %s", search_query, e)
+
     return unique[:3] or ["AAPL"]
 
 
