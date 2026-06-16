@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import logging
 
 from app.agents.fundamental import FundamentalAnalysisAgent
 from app.agents.news import NewsAgent
@@ -13,6 +14,8 @@ from app.crews.finance_crew import CrewAIUnavailableError, FinanceCrew
 from app.models.analysis import AgentFinding, AnalysisRequest, AnalysisResponse, CompanyAnalysis
 from app.services.finance_data import FinanceDataService
 from app.services.news_data import NewsDataService
+
+logger = logging.getLogger(__name__)
 
 
 POPULAR_TICKERS = {
@@ -47,6 +50,25 @@ POPULAR_TICKERS = {
     "SNOWFLAKE": "SNOW",
     "PALANTIR": "PLTR",
     "COINBASE": "COIN",
+    # Indian Tickers
+    "RELIANCE": "RELIANCE.NS",
+    "TCS": "TCS.NS",
+    "INFOSYS": "INFY.NS",
+    "INFY": "INFY.NS",
+    "HDFC": "HDFCBANK.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "ICICI": "ICICIBANK.NS",
+    "ICICIBANK": "ICICIBANK.NS",
+    "SBIN": "SBIN.NS",
+    "SBI": "SBIN.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "WIPRO": "WIPRO.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "ITC": "ITC.NS",
+    "MARUTI": "MARUTI.NS",
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "AIRTEL": "BHARTIARTL.NS",
 }
 
 
@@ -65,7 +87,7 @@ class MasterAgent:
         self.finance_crew = FinanceCrew()
 
     async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
-        symbols = _extract_symbols(request.query)
+        symbols = await _extract_symbols(request.query)
         analyses = await asyncio.gather(*(self._analyze_symbol(symbol, request) for symbol in symbols))
         return AnalysisResponse(
             query=request.query,
@@ -118,18 +140,94 @@ class MasterAgent:
             target_bias = crew_result["target_bias"]
             thesis = crew_result["thesis"] or thesis
             action_items = crew_result["action_items"] or action_items
+
+            if "specialist_findings" in crew_result:
+                sf = crew_result["specialist_findings"]
+                dynamic_agents = []
+                for a in agents:
+                    key = None
+                    if "news" in a.agent.lower(): key = "news"
+                    elif "fundamental" in a.agent.lower(): key = "fundamental"
+                    elif "technical" in a.agent.lower(): key = "technical"
+                    elif "sentiment" in a.agent.lower(): key = "sentiment"
+                    elif "risk" in a.agent.lower(): key = "risk"
+                    elif "portfolio" in a.agent.lower(): key = "portfolio"
+
+                    if key and key in sf and sf[key]:
+                        data_dict = sf[key]
+                        summary = ""
+                        signals = []
+                        confidence = 0.8
+                        score = 50
+
+                        if key == "news":
+                            summary = data_dict.get("headline_summary") or "News catalyst scanned."
+                            impact = data_dict.get("impact_direction") or "neutral"
+                            signals = [
+                                f"Catalyst type: {data_dict.get('catalyst_type', 'N/A')}",
+                                f"Impact direction: {impact}"
+                            ]
+                            if data_dict.get("sources"):
+                                signals.append(f"Sources: {', '.join(data_dict['sources'])}")
+                            confidence = float(data_dict.get("confidence_score", 80)) / 100.0
+                            score = 80 if impact == "bullish" else 30 if impact == "bearish" else 50
+                        elif key == "fundamental":
+                            val_est = data_dict.get("intrinsic_value_estimate") or "N/A"
+                            premium_pct = data_dict.get("current_price_premium_discount_pct") or "N/A"
+                            summary = f"Intrinsic value: {val_est} ({premium_pct} premium/discount)"
+                            signals = [
+                                f"Moat rating: {data_dict.get('moat_rating', 'none')}",
+                                f"Recommendation: {data_dict.get('recommendation', 'hold')}"
+                            ]
+                            key_metrics = data_dict.get("key_metrics") or {}
+                            non_nulls = sum(1 for v in key_metrics.values() if v is not None)
+                            confidence = 0.5 + (non_nulls * 0.09)
+                            rec = data_dict.get("recommendation") or "hold"
+                            score = 85 if rec.lower() == "buy" else 30 if rec.lower() in ("sell", "avoid") else 55
+                        elif key == "technical":
+                            trend = data_dict.get("trend_direction") or "sideways"
+                            sig = data_dict.get("signal") or "wait"
+                            summary = f"Trend is {trend} with signal {sig}."
+                            signals = [
+                                f"MACD: {data_dict.get('macd_signal', 'neutral')}, RSI: {data_dict.get('rsi_reading', 'N/A')}",
+                                f"Support: {data_dict.get('key_support', 'N/A')}, Resistance: {data_dict.get('key_resistance', 'N/A')}"
+                            ]
+                            confidence = 0.85
+                            score = 80 if sig.lower() == "buy" else 30 if sig.lower() == "sell" else 50
+                        elif key == "sentiment":
+                            summary = f"Sentiment score is {data_dict.get('sentiment_score', 0)}/100 ({data_dict.get('fear_greed_proxy', 'neutral')})."
+                            signals = [
+                                f"Buzz: {data_dict.get('social_buzz_volume', 'medium')}, Contrarian: {data_dict.get('contrarian_signal', False)}",
+                                f"Bias: {data_dict.get('positioning_bias', 'mixed')}"
+                            ]
+                            confidence = 0.80
+                            score = (int(data_dict.get("sentiment_score", 0)) + 100) / 2
+                        elif key == "risk":
+                            summary = f"Risk score is {data_dict.get('risk_score', 50)}/100."
+                            signals = data_dict.get("risks") or []
+                            confidence = 0.75
+                            score = 100 - int(data_dict.get("risk_score", 50))
+                            risk_score = int(data_dict.get("risk_score", risk_score))
+                        elif key == "portfolio":
+                            summary = f"Portfolio fit score is {data_dict.get('fit_score', 50)}/100."
+                            signals = [data_dict.get("allocation_advice", "No advice provided")] + (data_dict.get("rationale") or [])
+                            confidence = 0.80
+                            score = int(data_dict.get("fit_score", 50))
+
+                        dynamic_agents.append(AgentFinding(
+                            agent=a.agent,
+                            summary=summary,
+                            confidence=round(max(0.1, min(1.0, confidence)), 2),
+                            signals=signals,
+                            data=data_dict
+                        ))
+                    else:
+                        dynamic_agents.append(a)
+                agents = dynamic_agents
+                composite = _weighted_score(agents)
         except CrewAIUnavailableError as exc:
-            agents.append(
-                AgentFinding(
-                    agent="CrewAI Orchestrator",
-                    summary=f"CrewAI synthesis skipped: {exc}",
-                    confidence=0.4,
-                    signals=[
-                        "Set OPENAI_API_KEY or GEMINI_API_KEY and install CrewAI dependencies to enable live LLM committee synthesis."
-                    ],
-                    data={"score": composite, "mode": "deterministic_fallback"},
-                )
-            )
+            logger.info("CrewAI committee synthesis skipped: %s. Using deterministic fallback.", exc)
+
 
         return CompanyAnalysis(
             symbol=symbol,
@@ -145,13 +243,13 @@ class MasterAgent:
         )
 
 
-def _extract_symbols(query: str) -> list[str]:
+async def _extract_symbols(query: str) -> list[str]:
     """Extract stock ticker symbols from a user query."""
     upper = query.upper()
     discovered: list[str] = []
 
     # Pre-compute all uppercase words in the query once
-    all_uppercase_words = set(re.findall(r"\b[A-Z]{1,5}\b", upper))
+    all_uppercase_words = set(re.findall(r"\b[A-Z0-9.&-]{2,12}(?:\.[A-Z]{2})?\b", upper))
     # Known company names that should NOT be treated as tickers
     company_names = set(POPULAR_TICKERS.keys())
     known_tickers = set(POPULAR_TICKERS.values())
@@ -161,7 +259,7 @@ def _extract_symbols(query: str) -> list[str]:
         if name in upper or ticker in all_uppercase_words:
             discovered.append(ticker)
 
-    # Find additional potential tickers (2-5 uppercase letters)
+    # Find additional potential tickers (2-12 characters)
     # Exclude common English words and known company names
     ignored = {
         "AI", "VS", "AND", "THE", "BUY", "SELL", "HOLD", "STOCK",
@@ -171,13 +269,51 @@ def _extract_symbols(query: str) -> list[str]:
         "INVEST", "COMPARE", "ABOUT", "WITH", "FROM", "INTO",
         "GOOD", "BAD", "BEST", "WORST", "LONG", "SHORT", "TERM",
         "MY", "ME", "WE", "UP", "SO", "NO", "GO", "BE",
-        "ANALYZE",
+        "ANALYZE", "SHARE", "SHARES", "PRICE", "CHART", "REPORT"
     }
     for word in all_uppercase_words:
         if len(word) >= 2 and word not in ignored and word not in company_names and word not in discovered:
             discovered.append(word)
 
     unique = list(dict.fromkeys(discovered))
+
+    # If no popular tickers or direct tickers matched, run a dynamic Yahoo search!
+    if not unique:
+        cleaned = re.sub(r"[^\w\s]", "", query)
+        words = cleaned.split()
+        search_ignored = {
+            "analyze", "analysis", "stock", "stocks", "share", "shares", 
+            "price", "chart", "of", "about", "for", "in", "on", "the", "a", "an",
+            "company", "corporation", "corp", "co", "ltd", "limited", "inc",
+            "what", "is", "are", "trend", "buy", "sell", "hold", "please", "run", 
+            "me", "show", "to", "info", "information", "report"
+        }
+        filtered_words = [w for w in words if w.lower() not in search_ignored]
+        search_query = " ".join(filtered_words)
+
+        if search_query:
+            import httpx
+            from urllib.parse import quote_plus
+            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(search_query)}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            try:
+                async with httpx.AsyncClient(timeout=5) as client:
+                    response = await client.get(url, headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        quotes = data.get("quotes", [])
+                        valid_exchanges = {"NSI", "BSE", "NMS", "NYQ", "ASE"}
+                        for quote in quotes:
+                            symbol = quote.get("symbol")
+                            exch = quote.get("exchange")
+                            if symbol and exch in valid_exchanges:
+                                unique.append(symbol)
+                                break
+            except Exception as e:
+                logger.error("Error searching ticker for %s: %s", search_query, e)
+
     return unique[:3] or ["AAPL"]
 
 
@@ -236,4 +372,42 @@ def _build_overall_summary(analyses: list[CompanyAnalysis]) -> str:
     return (
         f"Compared {len(analyses)} stocks. "
         f"{ranked[0].symbol} has the lowest measured risk, while recommendations vary by agent signal strength."
+    )
+
+
+def create_master_agent(llm: str) -> "Agent":
+    """
+    Factory: build the production CrewAI Investment Committee Chair (Master Agent).
+    """
+    from crewai import Agent
+
+    logger.info("Initializing CrewAI Master Agent with model=%s", llm)
+    return Agent(
+        role="Investment Committee Chair",
+        goal=(
+            "Synthesize conflicting opinions from the specialist analysts into a unified, "
+            "decisive, and strictly formatted JSON final verdict. "
+            "You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+            "{\n"
+            '  "recommendation": "Buy|Hold|Sell",\n'
+            '  "target_bias": "String describing upside/downside",\n'
+            '  "summary": "1 paragraph executive summary",\n'
+            '  "thesis": ["point 1", "point 2", "point 3"],\n'
+            '  "action_items": ["action 1", "action 2", "action 3"]\n'
+            "}\n"
+            "Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+        ),
+        backstory=(
+            "You are the authoritative voice of the investment committee. You review the complete evidence payload "
+            "and listen to the fundamental analyst, the technician, the risk officer, and the portfolio manager. "
+            "You weigh all conflicting signals, and you make the hard final call: Buy, Hold, or Sell. "
+            "You are strict about output formats and never produce markdown wrappers, only pure JSON."
+        ),
+        llm=llm,
+        verbose=False,
+        memory=True,
+        max_iter=15,
+        max_rpm=10,
+        cache=True,
+        allow_delegation=True,  # master delegates to specialists
     )

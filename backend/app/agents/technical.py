@@ -1,10 +1,28 @@
+# Flowzint Finance Agent System — agents/technical.py — Production Ready
+
+"""
+Technical Agent: deterministic fallback + CrewAI production-grade agent factory.
+
+The TechnicalAnalysisAgent class provides a fast, deterministic indicator
+scorer (RSI, SMA, momentum) that runs without any LLM. The
+create_technical_agent() factory builds the production CrewAI Agent with
+structured JSON output, memory, rate limiting, and caching.
+"""
+
+from __future__ import annotations
+
+import logging
 from statistics import mean
 
 from app.models.analysis import AgentFinding
 from app.services.finance_data import MarketSnapshot
 
+logger = logging.getLogger(__name__)
+
 
 class TechnicalAnalysisAgent:
+    """Deterministic technical scorer — used as fallback when CrewAI is unavailable."""
+
     name = "Technical Analysis Agent"
 
     async def run(self, snapshot: MarketSnapshot) -> AgentFinding:
@@ -87,3 +105,60 @@ def _rsi(closes: list[float]) -> float:
         return 100.0
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
+
+
+def create_technical_agent(llm: str, search_tool) -> "Agent":
+    """
+    Factory: build the production CrewAI Technical Agent.
+
+    Returns a crewai.Agent configured with structured JSON output,
+    Dow Theory / Wyckoff / CMT methodology, memory, rate limiting, and caching.
+    Uses search_tool only (for fetching OHLCV data and indicator readings).
+    """
+    from crewai import Agent
+
+    logger.info("Initializing CrewAI Technical Agent with model=%s", llm)
+    return Agent(
+        role="Chartered Market Technician (CMT)",
+        goal=(
+            "Identify optimal entry and exit points for the given ticker by analyzing price action, "
+            "moving averages, momentum oscillators, and volume profiles. "
+            "You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+            "{\n"
+            '  "trend_direction": "uptrend|downtrend|sideways",\n'
+            '  "rsi_reading": X,\n'
+            '  "macd_signal": "bullish_cross|bearish_cross|neutral",\n'
+            '  "volume_confirmation": true|false,\n'
+            '  "key_support": "$X",\n'
+            '  "key_resistance": "$X",\n'
+            '  "entry_zone": "$X-$Y",\n'
+            '  "stop_loss": "$X",\n'
+            '  "target_price": "$X",\n'
+            '  "signal": "buy|sell|wait"\n'
+            "}\n"
+            "Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+        ),
+        backstory=(
+            "You are a disciplined quantitative and technical trader holding the Chartered Market "
+            "Technician (CMT) designation. You believe that price is truth and that all known "
+            "information is already discounted into the chart.\n\n"
+            "You look for convergence/divergence in RSI (14-period), MACD crosses (12/26/9), "
+            "Bollinger Band squeezes, and key psychological support/resistance levels. You apply "
+            "Dow Theory principles (confirming trends across multiple timeframes), Wyckoff method "
+            "(accumulation/distribution phases), and CMT-level pattern recognition including "
+            "head-and-shoulders, double tops/bottoms, and measured moves.\n\n"
+            "You always check the pre-fetched historical price data in your evidence payload first. "
+            "If indicators are missing, you search the web for recent OHLCV data and current indicator readings from financial "
+            "data providers. Your objective is to assess the current market trend and judge the timing "
+            "risk of initiating a position today. CRITICAL: You output 'wait' as the signal if no "
+            "clear, high-probability setup exists — you NEVER force a trade."
+        ),
+        llm=llm,
+        tools=[search_tool],
+        verbose=False,
+        memory=True,
+        max_iter=15,
+        max_rpm=10,
+        cache=True,
+        allow_delegation=False,
+    )
