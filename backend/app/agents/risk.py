@@ -1,7 +1,10 @@
 from statistics import mean, stdev
+import logging
 
 from app.models.analysis import AgentFinding
 from app.services.finance_data import MarketSnapshot
+
+logger = logging.getLogger(__name__)
 
 
 class RiskAnalysisAgent:
@@ -69,3 +72,40 @@ def _max_drawdown(values: list[float]) -> float:
         peak = max(peak, value)
         worst = min(worst, (value - peak) / peak)
     return worst
+
+
+def create_risk_agent(llm: str, search_tool) -> "Agent":
+    """
+    Factory: build the production CrewAI Risk Analysis Agent.
+    """
+    from crewai import Agent
+
+    logger.info("Initializing CrewAI Risk Agent with model=%s", llm)
+    return Agent(
+        role="Chief Risk Officer (CRO)",
+        goal=(
+            "Stress-test the investment thesis by identifying severe downside risks, high beta "
+            "exposure, and catastrophic macro scenarios for the given ticker. "
+            "You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+            "{\n"
+            '  "risks": ["risk1", "risk2", "risk3"],\n'
+            '  "risk_score": X\n'
+            "}\n"
+            "Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+        ),
+        backstory=(
+            "You are a paranoid but highly effective risk manager. Your primary job is capital preservation. "
+            "You constantly ask: 'What is the worst case scenario?' You evaluate debt-to-equity leverage, "
+            "competitor threats, and systemic risks. If an investment looks too good to be true, it is your "
+            "job to find the hidden trapdoor. You use search tools to verify regulatory actions, competitor "
+            "pressures, and supply chain disruptions."
+        ),
+        llm=llm,
+        tools=[search_tool],
+        verbose=False,
+        memory=True,
+        max_iter=15,
+        max_rpm=10,
+        cache=True,
+        allow_delegation=False,
+    )

@@ -1,41 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
+/* ── Light Mode Custom Properties (TradingView Style) ── */
 :root {
   color-scheme: light;
-  background: #f7f5ef;
+  
+  --color-ink: #131722;             /* High contrast dark charcoal text */
+  --color-paper: #ffffff;           /* Card background (pure white) */
+  --color-line: #e0e3eb;            /* Soft slate-grey borders */
+  --color-mint: #089981;            /* TradingView Emerald Green */
+  --color-berry: #f23645;           /* TradingView Crimson Red */
+  --color-amber: #b87b00;           /* Balanced gold amber */
+  --color-steel: #5d6573;           /* Muted cool grey secondary text */
+  --color-terminal-bg: #f0f3fa;     /* Light financial background (pale grey-blue) */
+
+  --grid-color: rgba(19, 23, 34, 0.035);
+  --bg-radial-1: radial-gradient(circle at 10% 20%, rgba(8, 153, 129, 0.03) 0%, transparent 40%);
+  --bg-radial-2: radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 45%);
+  
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(19, 23, 34, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(19, 23, 34, 0.05);
+}
+
+/* ── Dark Mode Custom Properties (Bloomberg/TradingView Dark Style) ── */
+.dark {
+  color-scheme: dark;
+  
+  --color-ink: #f3f4f6;             /* Primary high-contrast light text */
+  --color-paper: #0c1020;           /* Deep dark navy card background */
+  --color-line: #1e293b;            /* Dark slate borders */
+  --color-mint: #10b981;            /* Neon Emerald Green */
+  --color-berry: #f43f5e;           /* Bearish Rose Red */
+  --color-amber: #fbbf24;           /* Vivid gold warning */
+  --color-steel: #94a3b8;           /* Muted blue-grey descriptions */
+  --color-terminal-bg: #030712;     /* Dark space background */
+
+  --grid-color: rgba(255, 255, 255, 0.02);
+  --bg-radial-1: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+  --bg-radial-2: radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.06) 0%, transparent 45%);
+
+  --glass-bg: rgba(10, 15, 30, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.2) transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mint);
 }
 
 body {
   margin: 0;
-  color: #1d2329;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background:
-    linear-gradient(90deg, rgba(217, 214, 202, 0.48) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(217, 214, 202, 0.48) 1px, transparent 1px),
-    #f7f5ef;
-  background-size: 32px 32px;
+  color: var(--color-ink);
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  background: 
+    var(--bg-radial-1),
+    var(--bg-radial-2),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+    linear-gradient(180deg, var(--grid-color) 1px, transparent 1px),
+    var(--color-terminal-bg);
+  background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+  min-height: 100vh;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+/* Monospace font for data numbers */
+.font-mono-data {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* ── Animations ── */
+/* ── Custom Animations ── */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -51,7 +110,7 @@ select {
 @keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(-20px);
   }
   to {
     opacity: 1;
@@ -64,8 +123,14 @@ select {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(29, 138, 112, 0.2); }
-  50% { box-shadow: 0 0 12px 4px rgba(29, 138, 112, 0.15); }
+  0%, 100% { 
+    box-shadow: 0 0 15px 0px rgba(8, 153, 129, 0.1); 
+    border-color: rgba(8, 153, 129, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 25px 4px rgba(8, 153, 129, 0.2); 
+    border-color: rgba(8, 153, 129, 0.45);
+  }
 }
 
 @keyframes shimmer {
@@ -73,8 +138,13 @@ select {
   100% { background-position: 200% 0; }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in {
@@ -82,43 +152,80 @@ select {
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.4s ease-out both;
+  animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-grow-width {
-  animation: growWidth 0.8s ease-out both;
+  animation: growWidth 1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-pulse-glow {
-  animation: pulseGlow 2s ease-in-out infinite;
+  animation: pulseGlow 2.5s ease-in-out infinite;
 }
 
-/* Stagger delays for lists */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Stagger delays for beautiful loading */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }
 .stagger-3 { animation-delay: 0.15s; }
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 .stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
 
-/* Loading shimmer */
+/* Shimmer Loading State */
 .shimmer {
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    rgba(29, 138, 112, 0.08) 50%,
-    transparent 100%
+    rgba(255, 255, 255, 0.015) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.015) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Smooth transitions for interactive elements */
+/* Glassmorphism terminal layouts */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-panel-heavy {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
 .card-hover {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .card-hover:hover {
-  border-color: #486278;
-  box-shadow: 0 8px 24px rgba(29, 35, 41, 0.1);
-  transform: translateY(-2px);
+  border-color: rgba(8, 153, 129, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2.5px);
+}
+
+.dark .card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.mint-glow-hover:hover {
+  border-color: rgba(8, 153, 129, 0.3);
+  box-shadow: 0 0 20px rgba(8, 153, 129, 0.08);
+}
+
+.berry-glow-hover:hover {
+  border-color: rgba(242, 54, 69, 0.3);
+  box-shadow: 0 0 20px rgba(242, 54, 69, 0.08);
 }

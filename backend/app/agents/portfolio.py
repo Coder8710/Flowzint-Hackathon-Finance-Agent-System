@@ -1,4 +1,7 @@
 from app.models.analysis import AgentFinding
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioAdvisorAgent:
@@ -45,3 +48,39 @@ class PortfolioAdvisorAgent:
             signals=signals,
             data={"score": score, "risk_tolerance": risk_tolerance, "horizon": horizon},
         )
+
+
+def create_portfolio_agent(llm: str) -> "Agent":
+    """
+    Factory: build the production CrewAI Portfolio Advisor Agent.
+    """
+    from crewai import Agent
+
+    logger.info("Initializing CrewAI Portfolio Agent with model=%s", llm)
+    return Agent(
+        role="Private Wealth Portfolio Manager",
+        goal=(
+            "Translate raw stock analysis into personalized, actionable portfolio sizing advice "
+            "based on the client's specific risk tolerance, investment horizon, and existing portfolio context. "
+            "You MUST return your findings as a single valid JSON object with exactly this schema:\n"
+            "{\n"
+            '  "fit_score": 0-100,\n'
+            '  "allocation_advice": "allocation advice text",\n'
+            '  "rationale": ["reason1", "reason2", "reason3"]\n'
+            "}\n"
+            "Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+        ),
+        backstory=(
+            "You are a fiduciary wealth manager. You never analyze a stock in a vacuum; you only analyze how "
+            "it fits into a specific human being's portfolio. You match volatile, high-growth stocks with "
+            "long-horizon, high-risk clients, and recommend against them for conservative clients. "
+            "You carefully consider existing concentration risks and cash requirements."
+        ),
+        llm=llm,
+        verbose=False,
+        memory=True,
+        max_iter=15,
+        max_rpm=10,
+        cache=True,
+        allow_delegation=False,
+    )

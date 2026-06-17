@@ -48,7 +48,9 @@ class NewsDataService:
             return []
 
     async def _search_yahoo_rss(self, symbol: str) -> list[NewsItem]:
-        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={quote_plus(symbol)}&region=US&lang=en-US"
+        region = "IN" if symbol.endswith(".NS") or symbol.endswith(".BO") else "US"
+        lang = "en-IN" if region == "IN" else "en-US"
+        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={quote_plus(symbol)}&region={region}&lang={lang}"
         try:
             import xml.etree.ElementTree as ET
 
