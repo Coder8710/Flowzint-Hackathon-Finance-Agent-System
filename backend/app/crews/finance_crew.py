@@ -240,7 +240,7 @@ class FinanceCrew:
         tasks = [news_task, fundamental_task, technical_task, sentiment_task, risk_task, portfolio_task, master_task]
 
         # -----------------------------------------------------------------
-        # Crew with sequential process and production configuration
+        # Crew with hierarchical process and production configuration
         # -----------------------------------------------------------------
         crew = Crew(
             agents=[
