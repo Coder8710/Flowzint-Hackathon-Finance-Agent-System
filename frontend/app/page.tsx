@@ -1,24 +1,44 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, Brain, Loader2, Newspaper, Search, Shield, SlidersHorizontal, TrendingUp } from "lucide-react";
+import { 
+  Activity, 
+  BarChart3, 
+  Brain, 
+  Loader2, 
+  Newspaper, 
+  Search, 
+  Shield, 
+  SlidersHorizontal, 
+  TrendingUp, 
+  Zap, 
+  Sparkles,
+  Sun,
+  Moon,
+  HelpCircle
+} from "lucide-react";
 import { analyzeStock } from "@/lib/api";
 import { AnalysisResponse } from "@/lib/types";
 import { AnalysisReport } from "@/components/AnalysisReport";
+import { formatCurrencySymbols } from "@/lib/currency";
 
-const sampleQueries = ["Analyze NVIDIA stock", "Compare Apple vs Microsoft", "Should I invest in Tesla?"];
+const sampleQueries = [
+  "Analyze NVIDIA stock", 
+  "Is Suzlon Energy a good buy?", 
+  "Compare Apple vs Microsoft"
+];
 
 const agentSteps = [
-  { name: "News Agent", icon: Newspaper, desc: "Scanning latest headlines…" },
-  { name: "Fundamental Agent", icon: BarChart3, desc: "Evaluating financials…" },
-  { name: "Technical Agent", icon: TrendingUp, desc: "Analyzing price trends…" },
-  { name: "Sentiment Agent", icon: Brain, desc: "Gauging market mood…" },
-  { name: "Risk Agent", icon: Shield, desc: "Assessing volatility…" },
-  { name: "Master Agent", icon: Activity, desc: "Synthesizing report…" },
+  { name: "News & Macro Specialist", icon: Newspaper, desc: "Scanning Tavily feeds and parsing RSS sentiment..." },
+  { name: "Fundamental Analysis Agent", icon: BarChart3, desc: "Modeling intrinsic DCF value and evaluating SEC data..." },
+  { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Calculating 14-day RSI, MACD trends, and volume profiles..." },
+  { name: "Sentiment Analysis Agent", icon: Brain, desc: "Gauging retail buzz, fear-greed proxies, and social bias..." },
+  { name: "Risk Analysis Agent", icon: Shield, desc: "Measuring asset beta, historical drawdown, and volatility risk..." },
+  { name: "Investment Committee Chair", icon: Activity, desc: "Synthesizing consensus and creating action roadmap..." },
 ];
 
 export default function Home() {
-  const [query, setQuery] = useState("Analyze NVIDIA stock");
+  const [query, setQuery] = useState("Is Suzlon Energy a good buy?");
   const [riskTolerance, setRiskTolerance] = useState<"low" | "medium" | "high">("medium");
   const [horizon, setHorizon] = useState<"short" | "medium" | "long">("medium");
   const [portfolioContext, setPortfolioContext] = useState("");
@@ -26,10 +46,34 @@ export default function Home() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAgent, setActiveAgent] = useState(0);
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
-  const symbols = useMemo(() => result?.symbols.join(" / ") ?? "Ready", [result]);
+  const symbols = useMemo(() => result?.symbols.join(" / ") ?? "IDLE", [result]);
 
-  // Simulate agent progress during loading
+  // Sync theme setup on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as "light" | "dark" | null;
+    const currentTheme = saved || "dark";
+    setTheme(currentTheme);
+    if (currentTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  // Simulate agent progress during loading to show active pipelines
   useEffect(() => {
     if (!loading) {
       setActiveAgent(0);
@@ -37,7 +81,7 @@ export default function Home() {
     }
     const interval = setInterval(() => {
       setActiveAgent((prev) => (prev < agentSteps.length - 1 ? prev + 1 : prev));
-    }, 3000);
+    }, 4500); // 4.5s per agent phase
     return () => clearInterval(interval);
   }, [loading]);
 
@@ -55,199 +99,316 @@ export default function Home() {
       });
       setResult(response);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to run analysis.");
+      setError(caught instanceof Error ? caught.message : "Unable to run agent pipeline analysis.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-line bg-paper/95 backdrop-blur-sm animate-fade-in">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+    <main className="min-h-screen pb-12 transition-colors duration-200">
+      {/* Premium Header */}
+      <header className="border-b border-line bg-paper/65 backdrop-blur-md sticky top-0 z-50 animate-fade-in">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-mint tracking-wide">Flowzint Finance AI</p>
-            <h1 className="break-words text-2xl font-bold tracking-tight text-ink">
-              Multi-agent stock analysis console
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-mint animate-pulse" />
+              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">Flowzint Finance AI</p>
+            </div>
+            <h1 className="break-words text-xl font-extrabold tracking-tight text-ink mt-0.5 font-sans">
+              Your AI Investment Research Partner
             </h1>
           </div>
-          <div className="flex h-10 items-center gap-2 border border-line bg-white px-3 text-sm font-medium text-ink/70 animate-pulse-glow rounded-md">
-            <Activity className="h-4 w-4 text-mint" aria-hidden />
-            <span>{symbols}</span>
+          
+          <div className="flex items-center gap-3 self-end lg:self-auto">
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-paper text-ink transition-all hover:bg-line/40 active:scale-95 shadow-sm"
+              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4 text-amber" />
+              ) : (
+                <Moon className="h-4 w-4 text-indigo-500" />
+              )}
+            </button>
+
+            <div className="flex h-9 items-center gap-2 border border-line bg-paper px-3.5 text-xs font-mono-data font-bold text-steel rounded-lg">
+              <span className="text-[10px] uppercase tracking-widest text-steel/50">Target Asset:</span>
+              <span className="text-mint flex items-center gap-1.5 font-black">
+                <Zap className="h-3 w-3 fill-mint/20" />
+                {symbols}
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 lg:grid-cols-[420px_1fr] lg:px-6">
-        <form onSubmit={submit} className="border border-line bg-white p-5 shadow-panel rounded-lg animate-fade-in-up">
-          <div className="mb-4 flex items-center gap-2">
-            <Search className="h-5 w-5 text-steel" aria-hidden />
-            <h2 className="text-base font-semibold text-ink">Ask the master agent</h2>
-          </div>
-
-          <label className="block text-sm font-medium text-ink/72" htmlFor="query">
-            Query
-          </label>
-          <textarea
-            id="query"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="mt-2 min-h-28 w-full resize-y border border-line bg-paper px-3 py-3 text-sm outline-none rounded-md transition-colors focus:border-mint focus:ring-1 focus:ring-mint/30"
-          />
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {sampleQueries.map((sample) => (
-              <button
-                key={sample}
-                type="button"
-                onClick={() => setQuery(sample)}
-                className="border border-line bg-paper px-3 py-2 text-xs font-medium text-ink/70 rounded-md transition-all hover:border-mint hover:text-mint hover:bg-mint/5"
-              >
-                {sample}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-ink/72" htmlFor="risk">
-                Risk tolerance
-              </label>
-              <select
-                id="risk"
-                value={riskTolerance}
-                onChange={(event) => setRiskTolerance(event.target.value as "low" | "medium" | "high")}
-                className="h-11 w-full border border-line bg-paper px-3 text-sm outline-none rounded-md transition-colors focus:border-mint focus:ring-1 focus:ring-mint/30"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+      {/* Main Grid Section */}
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[400px_1fr]">
+        
+        {/* Left Side: Control deck Form */}
+        <aside>
+          <form onSubmit={submit} className="rounded-2xl glass-panel p-6 shadow-panel border border-line space-y-5 animate-fade-in-up">
+            <div className="flex items-center gap-2 mb-2 pb-3 border-b border-line">
+              <SlidersHorizontal className="h-4 w-4 text-mint" aria-hidden />
+              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Master Control Deck</h2>
             </div>
+
+            {/* Prompt input */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-ink/72" htmlFor="horizon">
-                Horizon
+              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="query">
+                Stock Query Prompt
               </label>
-              <select
-                id="horizon"
-                value={horizon}
-                onChange={(event) => setHorizon(event.target.value as "short" | "medium" | "long")}
-                className="h-11 w-full border border-line bg-paper px-3 text-sm outline-none rounded-md transition-colors focus:border-mint focus:ring-1 focus:ring-mint/30"
-              >
-                <option value="short">Short</option>
-                <option value="medium">Medium</option>
-                <option value="long">Long</option>
-              </select>
+              <div className="relative mt-2">
+                <textarea
+                  id="query"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="min-h-24 w-full resize-none border border-line bg-terminalBg/40 px-4 py-3 text-sm text-ink outline-none rounded-xl transition-all focus:border-mint focus:ring-1 focus:ring-mint/20 placeholder-steel/45"
+                  placeholder="e.g. Is Suzlon Energy a strong technical buy?"
+                />
+              </div>
             </div>
-          </div>
 
-          <label className="mt-5 block text-sm font-medium text-ink/72" htmlFor="portfolio">
-            Portfolio context
-          </label>
-          <textarea
-            id="portfolio"
-            value={portfolioContext}
-            onChange={(event) => setPortfolioContext(event.target.value)}
-            placeholder="Example: I already hold large-cap tech and want lower drawdown."
-            className="mt-2 min-h-24 w-full resize-y border border-line bg-paper px-3 py-3 text-sm outline-none rounded-md transition-colors focus:border-mint focus:ring-1 focus:ring-mint/30"
-          />
+            {/* Clickable Quick Pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {sampleQueries.map((sample) => (
+                <button
+                  key={sample}
+                  type="button"
+                  onClick={() => setQuery(sample)}
+                  className={`border px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                    query === sample
+                      ? "border-mint bg-mint/5 text-mint"
+                      : "border-line bg-paper/30 hover:border-mint hover:bg-mint/5 text-steel"
+                  }`}
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading || query.trim().length < 2}
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 bg-ink px-4 text-sm font-semibold text-white rounded-lg transition-all hover:bg-steel hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <SlidersHorizontal className="h-4 w-4" aria-hidden />}
-            {loading ? "Analyzing…" : "Run analysis"}
-          </button>
+            {/* Parameters Row */}
+            <div className="grid gap-4 sm:grid-cols-2 pt-2">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-steel mb-2" htmlFor="risk">
+                  Risk Tolerance
+                </label>
+                <select
+                  id="risk"
+                  value={riskTolerance}
+                  onChange={(event) => setRiskTolerance(event.target.value as "low" | "medium" | "high")}
+                  className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
+                >
+                  <option value="low">Low Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="high">High Risk</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-steel mb-2" htmlFor="horizon">
+                  Investment Horizon
+                </label>
+                <select
+                  id="horizon"
+                  value={horizon}
+                  onChange={(event) => setHorizon(event.target.value as "short" | "medium" | "long")}
+                  className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
+                >
+                  <option value="short">Short Term</option>
+                  <option value="medium">Medium Term</option>
+                  <option value="long">Long Term</option>
+                </select>
+              </div>
+            </div>
 
-          {error ? (
-            <p className="mt-4 border border-berry bg-berry/10 p-3 text-sm text-berry rounded-md animate-fade-in">
-              {error}
-            </p>
-          ) : null}
-        </form>
+            {/* Portfolio Context */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="portfolio">
+                Client Portfolio Context (Optional)
+              </label>
+              <textarea
+                id="portfolio"
+                value={portfolioContext}
+                onChange={(event) => setPortfolioContext(event.target.value)}
+                placeholder="Example: Currently overweight tech; looking for defensive or small-cap setups."
+                className="mt-2 min-h-20 w-full resize-none border border-line bg-terminalBg/40 px-4 py-3 text-xs text-ink outline-none rounded-xl transition-all focus:border-mint focus:ring-1 focus:ring-mint/20 placeholder-steel/40"
+              />
+            </div>
 
-        <div className="min-h-[520px] border border-line bg-paper/80 p-5 rounded-lg">
+            {/* Run Button */}
+            <button
+              type="submit"
+              disabled={loading || query.trim().length < 2}
+              className="relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden bg-mint font-black text-white dark:text-slate-950 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(8,153,129,0.35)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  <span className="text-xs uppercase tracking-widest font-black">Executing Pipeline…</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" aria-hidden />
+                  <span className="text-xs uppercase tracking-widest font-black">Run Committee Review</span>
+                </>
+              )}
+            </button>
+
+            {error && (
+              <div className="border border-berry/30 bg-berry/10 p-3.5 text-xs font-semibold text-berry rounded-xl animate-fade-in leading-relaxed">
+                {error}
+              </div>
+            )}
+          </form>
+        </aside>
+
+        {/* Right Side: Dynamic Content Panel */}
+        <div className="rounded-2xl glass-panel-heavy p-6 shadow-panel border border-line flex flex-col justify-between min-h-[520px]">
+          
+          {/* Loading Timeline Mode */}
           {loading ? (
-            <div className="flex h-full min-h-[480px] flex-col justify-center items-center p-6 animate-fade-in">
-              <p className="text-sm font-semibold uppercase tracking-wider text-steel mb-6">
-                AI Agents Working
-              </p>
-              <div className="w-full max-w-sm space-y-3">
+            <div className="flex h-full min-h-[480px] flex-col justify-center items-center py-6 animate-fade-in">
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-mint bg-mint/5 border border-mint/10 px-3 py-1 rounded-full animate-pulse">
+                Orchestrating Sub-Agents
+              </span>
+              <h3 className="text-lg font-bold text-ink mb-6 text-center">
+                CrewAI Financial Intelligence Pipeline
+              </h3>
+              
+              <div className="w-full max-w-md space-y-3">
                 {agentSteps.map((step, index) => {
                   const Icon = step.icon;
                   const isActive = index === activeAgent;
                   const isDone = index < activeAgent;
+                  
                   return (
                     <div
                       key={step.name}
-                      className={`flex items-center gap-3 border p-3 rounded-md transition-all duration-300 ${
+                      className={`flex items-center gap-3.5 border p-3.5 rounded-xl transition-all duration-300 ${
                         isActive
-                          ? "border-mint bg-mint/5 shadow-sm"
+                          ? "border-mint/30 bg-mint/5 shadow-[0_0_15px_rgba(8,153,129,0.06)]"
                           : isDone
-                            ? "border-line bg-white/60 opacity-70"
-                            : "border-line/50 bg-white/30 opacity-40"
+                            ? "border-line bg-paper/40 opacity-70"
+                            : "border-line/30 bg-paper/10 opacity-30"
                       }`}
                     >
-                      <Icon
-                        className={`h-4 w-4 shrink-0 ${
-                          isActive ? "text-mint animate-pulse" : isDone ? "text-mint" : "text-ink/30"
-                        }`}
-                        aria-hidden
-                      />
+                      <div className={`p-2 rounded-lg shrink-0 border transition-colors ${
+                        isActive 
+                          ? "bg-mint/10 border-mint/20 text-mint" 
+                          : isDone 
+                            ? "bg-paper border-line text-mint" 
+                            : "bg-paper/30 border-line/30 text-steel/30"
+                      }`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm font-semibold ${isActive ? "text-ink" : "text-ink/50"}`}>
-                          {step.name}
-                        </p>
-                        <p className={`text-xs ${isActive ? "text-ink/60" : "text-ink/30"}`}>
-                          {isDone ? "Complete ✓" : isActive ? step.desc : "Waiting…"}
+                        <div className="flex items-center gap-2">
+                          <p className={`text-xs font-bold uppercase tracking-wider ${isActive ? "text-ink" : "text-steel/70"}`}>
+                            {step.name}
+                          </p>
+                          {isActive && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-mint animate-ping" />
+                          )}
+                        </div>
+                        <p className={`text-xs mt-0.5 truncate leading-relaxed ${isActive ? "text-steel" : "text-steel/40"}`}>
+                          {isDone ? "Consensus completed." : isActive ? step.desc : "Awaiting activation..."}
                         </p>
                       </div>
+
                       {isActive && (
                         <Loader2 className="h-3.5 w-3.5 text-mint animate-spin shrink-0" aria-hidden />
                       )}
                       {isDone && (
-                        <span className="text-xs font-semibold text-mint">✓</span>
+                        <span className="text-xs font-mono-data font-black text-mint bg-mint/10 px-2 py-0.5 rounded border border-mint/20 shrink-0">
+                          DONE
+                        </span>
                       )}
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-6 w-full max-w-sm">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+
+              {/* Progress Slider */}
+              <div className="mt-8 w-full max-w-md">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-line/20 border border-line/10">
                   <div
-                    className="h-full bg-mint rounded-full transition-all duration-500 ease-out"
+                    className="h-full bg-gradient-to-r from-mint to-indigo-500 rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${((activeAgent + 1) / agentSteps.length) * 100}%` }}
                   />
                 </div>
-                <p className="mt-2 text-center text-xs text-ink/50">
-                  {activeAgent + 1} of {agentSteps.length} agents
-                </p>
+                <div className="flex justify-between mt-2.5 text-[10px] font-mono-data font-bold text-steel/50">
+                  <span>STAGE: {activeAgent + 1} / {agentSteps.length}</span>
+                  <span>{Math.round(((activeAgent + 1) / agentSteps.length) * 100)}% COMPILED</span>
+                </div>
               </div>
             </div>
           ) : result ? (
-            <div className="space-y-4 animate-fade-in-up">
-              <div className="border border-line bg-white p-5 rounded-lg">
-                <p className="text-sm font-semibold uppercase tracking-wider text-steel">Master Agent Summary</p>
-                <h2 className="mt-2 text-xl font-bold tracking-tight text-ink">{result.summary}</h2>
-                <p className="mt-3 text-sm text-ink/60">{result.disclaimer}</p>
+            
+            /* Results Display Mode */
+            <div className="space-y-6 animate-fade-in-up w-full">
+              {/* Committee Summary banner */}
+              <div className="border border-line bg-paper p-6 rounded-2xl relative overflow-hidden group">
+                <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 w-64 h-64 rounded-full bg-gradient-to-bl from-mint/10 to-transparent blur-3xl" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-mint bg-mint/5 px-2.5 py-0.5 rounded border border-mint/10 inline-block">
+                  Committee Consensus Verdict
+                </p>
+                <h3 className="mt-3 text-lg font-bold tracking-tight text-ink leading-relaxed">
+                  {formatCurrencySymbols(result.summary, result.analyses[0]?.symbol)}
+                </h3>
+                <p className="mt-4 text-[11px] font-medium text-steel/60 leading-relaxed border-t border-line pt-3">
+                  Disclaimer: {result.disclaimer}
+                </p>
               </div>
-              <div className="space-y-5">
+
+              {/* Individual Reports render */}
+              <div className="space-y-6">
                 {result.analyses.map((analysis) => (
                   <AnalysisReport key={analysis.symbol} analysis={analysis} />
                 ))}
               </div>
             </div>
           ) : (
-            <div className="flex h-full min-h-[480px] flex-col justify-center border border-dashed border-line bg-white/70 p-6 rounded-lg animate-fade-in">
-              <p className="text-sm font-semibold uppercase tracking-wider text-steel">Awaiting query</p>
-              <h2 className="mt-2 max-w-2xl text-2xl font-bold tracking-tight text-ink">
-                Ask for a stock analysis or comparison and the master agent will coordinate six specialist agents.
+            
+            /* Landing Initial Mode */
+            <div className="flex h-full min-h-[480px] flex-col justify-center items-center text-center p-6 animate-fade-in">
+              <div className="relative mb-6 animate-float">
+                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-mint to-indigo-500 opacity-20 blur-xl w-16 h-16 mx-auto" />
+                <div className="h-16 w-16 rounded-full bg-paper border border-line flex items-center justify-center text-3xl shadow-sm">
+                  🔮
+                </div>
+              </div>
+              
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-steel/60">
+                Decision Support Engine
+              </span>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink max-w-md leading-snug">
+                Unified Multi-Agent Financial Research
               </h2>
-              <p className="mt-3 max-w-2xl text-sm text-ink/62">
-                Results include a buy, hold, or sell suggestion, agent-level evidence, risk score, recent headlines, and portfolio-fit notes.
+              <p className="mt-3 max-w-sm text-xs font-medium text-steel leading-relaxed">
+                Input any ticker or stock query to launch six collaborative AI sub-agents. 
+                They scan market financials, recent news headlines, retail sentiment charts, and sizing portfolios.
               </p>
+              
+              <div className="mt-8 grid gap-4 grid-cols-2 max-w-sm w-full text-left">
+                <div className="p-3 bg-paper/40 border border-line rounded-xl">
+                  <div className="text-mint font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Zap className="h-3 w-3" /> Real-time
+                  </div>
+                  <p className="text-[11px] text-steel/60 leading-relaxed">Live yfinance market feeds and news web crawls.</p>
+                </div>
+                <div className="p-3 bg-paper/40 border border-line rounded-xl">
+                  <div className="text-indigo-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Activity className="h-3 w-3" /> Consensus
+                  </div>
+                  <p className="text-[11px] text-steel/60 leading-relaxed">Agents debate signals to form a final verdict.</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

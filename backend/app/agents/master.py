@@ -18,60 +18,6 @@ from app.services.news_data import NewsDataService
 logger = logging.getLogger(__name__)
 
 
-POPULAR_TICKERS = {
-    "APPLE": "AAPL",
-    "MICROSOFT": "MSFT",
-    "NVIDIA": "NVDA",
-    "TESLA": "TSLA",
-    "AMAZON": "AMZN",
-    "GOOGLE": "GOOGL",
-    "ALPHABET": "GOOGL",
-    "META": "META",
-    "FACEBOOK": "META",
-    "NETFLIX": "NFLX",
-    "AMD": "AMD",
-    "INTEL": "INTC",
-    "DISNEY": "DIS",
-    "NIKE": "NKE",
-    "COCA-COLA": "KO",
-    "COCACOLA": "KO",
-    "PEPSI": "PEP",
-    "WALMART": "WMT",
-    "JPMORGAN": "JPM",
-    "GOLDMAN": "GS",
-    "BOEING": "BA",
-    "BERKSHIRE": "BRK-B",
-    "PAYPAL": "PYPL",
-    "UBER": "UBER",
-    "SPOTIFY": "SPOT",
-    "SALESFORCE": "CRM",
-    "ORACLE": "ORCL",
-    "ADOBE": "ADBE",
-    "SNOWFLAKE": "SNOW",
-    "PALANTIR": "PLTR",
-    "COINBASE": "COIN",
-    # Indian Tickers
-    "RELIANCE": "RELIANCE.NS",
-    "TCS": "TCS.NS",
-    "INFOSYS": "INFY.NS",
-    "INFY": "INFY.NS",
-    "HDFC": "HDFCBANK.NS",
-    "HDFCBANK": "HDFCBANK.NS",
-    "ICICI": "ICICIBANK.NS",
-    "ICICIBANK": "ICICIBANK.NS",
-    "SBIN": "SBIN.NS",
-    "SBI": "SBIN.NS",
-    "TATASTEEL": "TATASTEEL.NS",
-    "TATAMOTORS": "TATAMOTORS.NS",
-    "WIPRO": "WIPRO.NS",
-    "HCLTECH": "HCLTECH.NS",
-    "ITC": "ITC.NS",
-    "MARUTI": "MARUTI.NS",
-    "BHARTIARTL": "BHARTIARTL.NS",
-    "AIRTEL": "BHARTIARTL.NS",
-}
-
-
 class MasterAgent:
     """Coordinates sub-agents and produces the final investment report."""
 
@@ -243,78 +189,129 @@ class MasterAgent:
         )
 
 
+async def _search_yahoo_ticker(query_str: str) -> str | None:
+    """Query Yahoo Finance Search API to find the best matching stock ticker in US, India, Japan, China, or Dubai."""
+    import httpx
+    from urllib.parse import quote_plus
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    TARGET_EXCHANGES = {
+        "NMS", "NYQ", "ASE",  # US
+        "NSE", "BSE",        # India
+        "JPX", "TYO", "TKS",  # Japan
+        "SHH", "SHE", "HKG",  # China / HK
+        "DFM", "DUB", "DUD"   # Dubai
+    }
+
+    TARGET_SUFFIXES = (
+        ".NS", ".BO",
+        ".T",
+        ".SS", ".SZ", ".HK",
+        ".AE", ".DU"
+    )
+
+    async def do_search(q: str) -> str | None:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(q)}"
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                response = await client.get(url, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    quotes = data.get("quotes", [])
+
+                    # Priority 1: Equity in target countries (by exchange or symbol suffix)
+                    for quote in quotes:
+                        symbol = quote.get("symbol")
+                        exch = quote.get("exchange")
+                        qtype = quote.get("quoteType")
+                        if symbol and qtype == "EQUITY":
+                            if exch in TARGET_EXCHANGES or symbol.endswith(TARGET_SUFFIXES):
+                                return symbol
+
+                    # Priority 2: Any general equity
+                    for quote in quotes:
+                        symbol = quote.get("symbol")
+                        qtype = quote.get("quoteType")
+                        if symbol and qtype == "EQUITY":
+                            return symbol
+
+                    # Priority 3: First available symbol of any type
+                    if quotes and quotes[0].get("symbol"):
+                        return quotes[0]["symbol"]
+        except Exception as e:
+            logger.error("Error dynamically searching Yahoo ticker for %s: %s", q, e)
+        return None
+
+    # First attempt: search with original query string
+    result = await do_search(query_str)
+    if result:
+        return result
+
+    # Second attempt: if no quotes found and query has spaces, try stripping spaces (e.g., "icici amc" -> "iciciamc")
+    if " " in query_str:
+        collapsed = query_str.replace(" ", "")
+        result = await do_search(collapsed)
+        if result:
+            return result
+
+    return None
+
+
 async def _extract_symbols(query: str) -> list[str]:
-    """Extract stock ticker symbols from a user query."""
-    upper = query.upper()
+    """Extract stock ticker symbols from a user query dynamically, targeting India, US, Japan, China, and Dubai."""
+    # Split query into potential segments based on comparisons/conjunctions/commas
+    parts = re.split(r"\b(?:vs|versus|and)\b|,", query, flags=re.IGNORECASE)
     discovered: list[str] = []
 
-    # Pre-compute all uppercase words in the query once
-    all_uppercase_words = set(re.findall(r"\b[A-Z0-9.&-]{2,12}(?:\.[A-Z]{2})?\b", upper))
-    # Known company names that should NOT be treated as tickers
-    company_names = set(POPULAR_TICKERS.keys())
-    known_tickers = set(POPULAR_TICKERS.values())
-
-    # Match popular company names and their tickers
-    for name, ticker in POPULAR_TICKERS.items():
-        if name in upper or ticker in all_uppercase_words:
-            discovered.append(ticker)
-
-    # Find additional potential tickers (2-12 characters)
-    # Exclude common English words and known company names
-    ignored = {
-        "AI", "VS", "AND", "THE", "BUY", "SELL", "HOLD", "STOCK",
-        "IN", "OR", "AN", "AT", "TO", "IF", "OF", "ON", "IS", "IT",
-        "FOR", "NOT", "ARE", "BUT", "HAS", "HAD", "DO", "CAN", "MAY",
-        "SHOULD", "WOULD", "COULD", "WILL", "NOW", "HOW", "WHY", "WHAT",
-        "INVEST", "COMPARE", "ABOUT", "WITH", "FROM", "INTO",
-        "GOOD", "BAD", "BEST", "WORST", "LONG", "SHORT", "TERM",
-        "MY", "ME", "WE", "UP", "SO", "NO", "GO", "BE",
-        "ANALYZE", "SHARE", "SHARES", "PRICE", "CHART", "REPORT"
+    # Common words to ignore when cleaning up search query segments
+    search_ignored = {
+        "analyze", "analysis", "stock", "stocks", "share", "shares", 
+        "price", "prices", "chart", "charts", "of", "about", "for", "in", "on", "the", "a", "an",
+        "company", "corporation", "corp", "co", "ltd", "limited", "inc", "incorporated",
+        "what", "is", "are", "trend", "trends", "buy", "buying", "sell", "selling", "hold", "holding", 
+        "please", "run", "me", "show", "to", "info", "information", "report", "reports",
+        "versus", "vs", "and", "compare", "comparison", "or", "with", "against",
+        "good", "bad", "best", "worst", "great", "fine", "nice", "awesome", "strong", "weak", 
+        "bullish", "bearish", "undervalued", "overvalued", "cheap", "expensive", "worth", 
+        "positive", "negative", "growth", "value", "momentum", "potential", "opportunity", 
+        "safe", "risky", "should", "i", "invest", "investing", "investment", "investments",
+        "how", "why", "where", "can", "do", "does", "did", "would", "could", "will",
+        "performance", "valuation", "dividend", "dividends", "debt", "earnings", "revenue",
+        "guidance", "target", "opinion", "recommendation", "advice", "rating", "ratings",
+        "score", "scores", "sentiment", "news", "history", "forecast", "projection", "projections"
     }
-    for word in all_uppercase_words:
-        if len(word) >= 2 and word not in ignored and word not in company_names and word not in discovered:
-            discovered.append(word)
+
+    # Clean and resolve each part
+    for part in parts:
+        cleaned_part = re.sub(r"[^\w\s.-]", "", part)
+        words = cleaned_part.split()
+        filtered_words = [w for w in words if w.lower() not in search_ignored]
+
+        if not filtered_words:
+            continue
+
+        segment = " ".join(filtered_words).strip()
+        segment_upper = segment.upper()
+
+        # 1. Check if it's explicitly structured as an exchange ticker (e.g. RELIANCE.NS, 7203.T, EMAAR.AE)
+        if re.match(r"^[A-Z0-9.-]+\.[A-Z0-9]{1,4}$", segment_upper):
+            discovered.append(segment_upper)
+            continue
+
+        # 2. Dynamic Yahoo Finance Search Lookup
+        resolved_ticker = await _search_yahoo_ticker(segment)
+        if resolved_ticker:
+            discovered.append(resolved_ticker)
+        else:
+            # Fallback to the first filtered word itself so yfinance fallback simulation works
+            discovered.append(filtered_words[0].upper())
 
     unique = list(dict.fromkeys(discovered))
-
-    # If no popular tickers or direct tickers matched, run a dynamic Yahoo search!
-    if not unique:
-        cleaned = re.sub(r"[^\w\s]", "", query)
-        words = cleaned.split()
-        search_ignored = {
-            "analyze", "analysis", "stock", "stocks", "share", "shares", 
-            "price", "chart", "of", "about", "for", "in", "on", "the", "a", "an",
-            "company", "corporation", "corp", "co", "ltd", "limited", "inc",
-            "what", "is", "are", "trend", "buy", "sell", "hold", "please", "run", 
-            "me", "show", "to", "info", "information", "report"
-        }
-        filtered_words = [w for w in words if w.lower() not in search_ignored]
-        search_query = " ".join(filtered_words)
-
-        if search_query:
-            import httpx
-            from urllib.parse import quote_plus
-            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(search_query)}"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            try:
-                async with httpx.AsyncClient(timeout=5) as client:
-                    response = await client.get(url, headers=headers)
-                    if response.status_code == 200:
-                        data = response.json()
-                        quotes = data.get("quotes", [])
-                        valid_exchanges = {"NSI", "BSE", "NMS", "NYQ", "ASE"}
-                        for quote in quotes:
-                            symbol = quote.get("symbol")
-                            exch = quote.get("exchange")
-                            if symbol and exch in valid_exchanges:
-                                unique.append(symbol)
-                                break
-            except Exception as e:
-                logger.error("Error searching ticker for %s: %s", search_query, e)
-
     return unique[:3] or ["AAPL"]
+
 
 
 def _weighted_score(agents: list) -> float:

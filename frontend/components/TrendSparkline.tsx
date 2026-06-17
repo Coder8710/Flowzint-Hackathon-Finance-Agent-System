@@ -1,8 +1,9 @@
 type TrendSparklineProps = {
+  symbol?: string;
   history?: unknown;
 };
 
-export function TrendSparkline({ history }: TrendSparklineProps) {
+export function TrendSparkline({ symbol, history }: TrendSparklineProps) {
   const rows = Array.isArray(history) ? history : [];
   const closes = rows
     .map((row) => (typeof row === "object" && row && "close" in row ? Number(row.close) : NaN))
@@ -10,8 +11,8 @@ export function TrendSparkline({ history }: TrendSparklineProps) {
 
   if (closes.length < 2) {
     return (
-      <div className="flex h-32 items-center justify-center border border-dashed border-line text-sm text-ink/55 rounded-lg bg-white/60">
-        No chart data
+      <div className="flex h-32 items-center justify-center border border-dashed border-line/30 text-xs font-semibold text-steel/60 rounded-lg bg-slate-950/40">
+        No chart data available
       </div>
     );
   }
@@ -20,8 +21,10 @@ export function TrendSparkline({ history }: TrendSparklineProps) {
   const max = Math.max(...closes);
   const range = max - min || 1;
   const isPositive = closes[closes.length - 1] >= closes[0];
-  const strokeColor = isPositive ? "#1d8a70" : "#8c315d";
-  const fillId = isPositive ? "fillGreen" : "fillRed";
+  
+  // High contrast neon colors for terminal theme
+  const strokeColor = isPositive ? "#10b981" : "#f43f5e";
+  const fillId = isPositive ? "sparklineFillGreen" : "sparklineFillRed";
 
   const linePoints = closes
     .map((value, index) => {
@@ -34,25 +37,44 @@ export function TrendSparkline({ history }: TrendSparklineProps) {
   // Area fill: line points + close at bottom
   const areaPoints = `0,90 ${linePoints} 100,90`;
 
+  const currencySymbol = symbol?.toUpperCase().endsWith(".NS") || symbol?.toUpperCase().endsWith(".BO") ? "₹" : "$";
+
   return (
-    <div className="rounded-lg border border-line bg-white/60 p-2 animate-fade-in">
-      <div className="flex items-center justify-between px-1 mb-1">
-        <span className="text-xs font-medium text-ink/50 uppercase tracking-wider">Price Trend</span>
-        <span className={`text-xs font-bold ${isPositive ? "text-mint" : "text-berry"}`}>
-          {isPositive ? "▲" : "▼"} ${closes[closes.length - 1].toFixed(2)}
+    <div className="rounded-xl glass-panel p-4 animate-fade-in card-hover">
+      <div className="flex items-center justify-between px-1 mb-2.5">
+        <span className="text-xs font-bold text-steel uppercase tracking-wider">Historical Trend</span>
+        <span className={`font-mono-data text-sm font-bold flex items-center gap-1 ${isPositive ? "text-mint" : "text-berry"}`}>
+          {isPositive ? "▲" : "▼"} {currencySymbol}{closes[closes.length - 1].toFixed(2)}
         </span>
       </div>
-      <svg viewBox="0 0 100 100" className="h-28 w-full" role="img" aria-label="Price trend">
-        <defs>
-          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.2" />
-            <stop offset="100%" stopColor={strokeColor} stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <polygon points={areaPoints} fill={`url(#${fillId})`} />
-        <polyline points={linePoints} fill="none" stroke={strokeColor} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="0" y1="90" x2="100" y2="90" stroke="#d9d6ca" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <div className="relative h-28 w-full">
+        <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label="Price trend" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={strokeColor} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          {/* Reference baseline grid */}
+          <line x1="0" y1="10" x2="100" y2="10" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1="0" y1="90" x2="100" y2="90" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+          
+          {/* Filled Area */}
+          <polygon points={areaPoints} fill={`url(#${fillId})`} />
+          
+          {/* Sparkline Line */}
+          <polyline 
+            points={linePoints} 
+            fill="none" 
+            stroke={strokeColor} 
+            strokeWidth="2" 
+            vectorEffect="non-scaling-stroke" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        </svg>
+      </div>
     </div>
   );
 }

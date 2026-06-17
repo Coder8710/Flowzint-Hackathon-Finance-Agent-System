@@ -5,20 +5,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#1d2329",
-        paper: "#f7f5ef",
-        line: "#d9d6ca",
-        mint: "#1d8a70",
-        berry: "#8c315d",
-        amber: "#ba7a16",
-        steel: "#486278"
+        // Map design tokens to CSS variables for fluid dark/light toggling
+        ink: "var(--color-ink)",
+        paper: "var(--color-paper)",
+        line: "var(--color-line)",
+        mint: "var(--color-mint)",
+        berry: "var(--color-berry)",
+        amber: "var(--color-amber)",
+        steel: "var(--color-steel)",
+        terminalBg: "var(--color-terminal-bg)"
       },
       boxShadow: {
-        panel: "0 12px 30px rgba(29, 35, 41, 0.08)",
-        "panel-hover": "0 16px 40px rgba(29, 35, 41, 0.12)"
+        panel: "0 8px 32px 0 rgba(0, 0, 0, 0.08)",
+        "panel-dark": "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        "mint-glow": "0 0 15px rgba(8, 153, 129, 0.15)",
+        "berry-glow": "0 0 15px rgba(242, 54, 69, 0.15)"
       },
       borderRadius: {
-        lg: "0.625rem"
+        lg: "0.75rem"
       },
       letterSpacing: {
         wider: "0.06em"

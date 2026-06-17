@@ -1,119 +1,430 @@
-import { AlertTriangle, BarChart3, Newspaper, ShieldCheck, Target, TrendingUp } from "lucide-react";
-import { CompanyAnalysis } from "@/lib/types";
+import { useState } from "react";
+import { 
+  AlertTriangle, 
+  BarChart3, 
+  Newspaper, 
+  ShieldCheck, 
+  Target, 
+  TrendingUp, 
+  HelpCircle,
+  Activity,
+  CheckCircle,
+  TrendingDown
+} from "lucide-react";
+import { CompanyAnalysis, AgentFinding } from "@/lib/types";
 import { MetricBar } from "./MetricBar";
 import { TrendSparkline } from "./TrendSparkline";
+import { formatCurrencySymbols } from "@/lib/currency";
 
-const icons = [BarChart3, TrendingUp, Newspaper, Target, AlertTriangle, ShieldCheck];
+const agentIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  "News & Macro Specialist": Newspaper,
+  "Fundamental Analysis Agent": BarChart3,
+  "Technical Analysis Agent": TrendingUp,
+  "Sentiment Analysis Agent": Target,
+  "Risk Analysis Agent": ShieldCheck,
+  "Portfolio Advisor Agent": HelpCircle,
+};
 
 export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
+  const [activeAgentIndex, setActiveAgentIndex] = useState<number>(0);
   const technical = analysis.agents.find((agent) => agent.agent === "Technical Analysis Agent");
-  const agentScores = analysis.agents.map((agent) => Number(agent.data.score ?? 50));
+  
+  const symbol = analysis.symbol;
+  const rec = analysis.recommendation;
+  
+  // Custom theme colors for recommendation banner
+  const recColors = 
+    rec === "Buy"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 shadow-[0_0_15px_rgba(8,153,129,0.08)]"
+      : rec === "Sell"
+        ? "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400 shadow-[0_0_15px_rgba(242,54,69,0.08)]"
+        : "border-amber-500/30 bg-amber-500/10 text-amber-500 dark:text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.08)]";
 
-  return (
-    <section className="border-y border-line bg-white/78 rounded-lg animate-fade-in-up">
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr] lg:px-6">
-        <aside className="min-w-0 space-y-5">
-          <div className="border border-line bg-paper p-5 shadow-panel rounded-lg">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-steel tracking-wide">{analysis.symbol}</p>
-                <h2 className="break-words text-2xl font-bold tracking-tight text-ink">{analysis.company_name}</h2>
-              </div>
-              <span
-                className={`shrink-0 border px-3 py-1.5 text-sm font-bold rounded-md transition-colors ${
-                  analysis.recommendation === "Buy"
-                    ? "border-mint bg-mint/10 text-mint"
-                    : analysis.recommendation === "Sell"
-                      ? "border-berry bg-berry/10 text-berry"
-                      : "border-amber bg-amber/10 text-amber"
-                }`}
-              >
-                {analysis.recommendation}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-ink/65">{analysis.target_bias}</p>
-            <div className="mt-5 space-y-4">
-              <MetricBar label="Confidence" value={analysis.confidence * 100} tone="good" />
-              <MetricBar label="Risk score" value={analysis.risk_score} tone={analysis.risk_score > 65 ? "bad" : "warn"} />
-            </div>
+  const selectedAgent = analysis.agents[activeAgentIndex] || analysis.agents[0];
+
+  // Render specific metrics depending on which agent tab is active
+  const renderAgentTelemetry = (agent: AgentFinding) => {
+    const data = agent.data || {};
+    const name = agent.agent;
+
+    if (name.includes("Fundamental")) {
+      const metrics = (data.key_metrics as Record<string, unknown>) || {};
+      return (
+        <div className="grid grid-cols-2 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Moat Quality</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.moat_rating || "None")}</p>
           </div>
-
-          <TrendSparkline history={technical?.data.history} />
-        </aside>
-
-        <div className="min-w-0 space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="border border-line bg-paper p-5 rounded-lg card-hover">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/60">Investment Thesis</h3>
-              <ul className="mt-3 space-y-2 text-sm text-ink/78">
-                {analysis.thesis.map((item, idx) => (
-                  <li key={item} className={`border-l-2 border-mint pl-3 animate-slide-in-left stagger-${idx + 1}`}>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="border border-line bg-paper p-5 rounded-lg card-hover">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/60">Next Actions</h3>
-              <ul className="mt-3 space-y-2 text-sm text-ink/78">
-                {analysis.action_items.map((item, idx) => (
-                  <li key={item} className={`border-l-2 border-amber pl-3 animate-slide-in-left stagger-${idx + 1}`}>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Intrinsic Value</span>
+            <p className="text-sm font-extrabold text-mint mt-0.5">
+              {formatCurrencySymbols(String(data.intrinsic_value_estimate || "N/A"), symbol)}
+            </p>
           </div>
-
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {analysis.agents.map((agent, index) => {
-              const Icon = icons[index % icons.length];
-              return (
-                <article
-                  key={agent.agent}
-                  className={`min-w-0 border border-line bg-white p-4 rounded-lg card-hover animate-fade-in-up stagger-${index + 1}`}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-steel" aria-hidden />
-                    <h3 className="truncate text-sm font-semibold text-ink">{agent.agent}</h3>
-                  </div>
-                  <p className="min-h-12 text-sm text-ink/72">{agent.summary}</p>
-                  {agent.signals.length > 0 && (
-                    <ul className="mt-3 space-y-1">
-                      {agent.signals.slice(0, 2).map((signal) => (
-                        <li key={signal} className="text-xs text-ink/55 border-l border-line pl-2 truncate">
-                          {signal}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="mt-4">
-                    <MetricBar label="Agent score" value={agentScores[index]} tone={agentScores[index] >= 60 ? "good" : agentScores[index] <= 40 ? "bad" : "info"} />
-                  </div>
-                </article>
-              );
-            })}
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">P/E Ratio</span>
+            <p className="font-mono-data text-xs font-bold text-ink mt-0.5">
+              {String(metrics.pe_ratio || data.pe_ratio || "N/A")}
+            </p>
           </div>
-
-          <div className="border border-line bg-paper p-5 rounded-lg">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/60">News Feed</h3>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {analysis.news.map((item) => (
-                <a
-                  key={`${item.title}-${item.url}`}
-                  href={item.url ?? "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block min-w-0 border border-line bg-white p-4 rounded-lg card-hover"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wider text-steel">{item.source}</p>
-                  <h4 className="mt-1 text-sm font-semibold text-ink">{item.title}</h4>
-                  {item.summary ? <p className="mt-2 line-clamp-2 text-sm text-ink/62">{item.summary}</p> : null}
-                </a>
-              ))}
-            </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Debt-to-Equity</span>
+            <p className="font-mono-data text-xs font-bold text-ink mt-0.5">
+              {String(metrics.debt_to_equity || data.debt_to_equity || "N/A")}
+            </p>
           </div>
         </div>
+      );
+    }
+
+    if (name.includes("Technical")) {
+      return (
+        <div className="grid grid-cols-2 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Trend Direction</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.trend_direction || "Sideways")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Signal Action</span>
+            <p className="text-sm font-extrabold text-mint mt-0.5 capitalize">{String(data.signal || "Wait")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">14-Period RSI</span>
+            <p className="font-mono-data text-xs font-bold text-ink mt-0.5">{String(data.rsi_reading || "N/A")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Key Resistance</span>
+            <p className="font-mono-data text-xs font-bold text-ink mt-0.5">
+              {formatCurrencySymbols(String(data.key_resistance || "N/A"), symbol)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (name.includes("News")) {
+      const sourcesList = Array.isArray(data.sources) 
+        ? data.sources.join(", ") 
+        : typeof data.sources === "string" 
+          ? data.sources 
+          : "N/A";
+      return (
+        <div className="grid grid-cols-2 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Macro Impact</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.impact_direction || "Neutral")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Catalyst Category</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.catalyst_type || "N/A")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl col-span-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Coverage Sources</span>
+            <p className="text-xs font-semibold text-ink mt-0.5 truncate">{sourcesList}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (name.includes("Sentiment")) {
+      return (
+        <div className="grid grid-cols-2 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Fear-Greed Index</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.fear_greed_proxy || "Neutral")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Retail Buzz Volume</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 capitalize">{String(data.social_buzz_volume || "Medium")}</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl col-span-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Net Positioning Bias</span>
+            <p className="text-xs font-semibold text-ink mt-0.5 capitalize">{String(data.positioning_bias || "Neutral")}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (name.includes("Risk")) {
+      const isHigh = Number(data.risk_score || 50) > 65;
+      return (
+        <div className="grid grid-cols-2 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Raw Risk Score</span>
+            <p className="text-sm font-extrabold text-ink mt-0.5 font-mono-data">{String(data.risk_score || "N/A")}/100</p>
+          </div>
+          <div className="bg-paper/40 border border-line p-3 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Risk Categorization</span>
+            <p className={`text-sm font-extrabold mt-0.5 ${isHigh ? "text-berry" : "text-mint"}`}>
+              {isHigh ? "High Volatility" : "Conservative"}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (name.includes("Portfolio")) {
+      return (
+        <div className="grid grid-cols-1 gap-3.5 mt-4">
+          <div className="bg-paper/40 border border-line p-4 rounded-xl leading-relaxed">
+            <span className="text-[10px] font-black uppercase tracking-wider text-steel">Fiduciary Advice</span>
+            <p className="text-xs font-semibold text-mint mt-1">
+              {formatCurrencySymbols(String(data.allocation_advice || "No advice provided"), symbol)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-xs text-steel/65 italic mt-4">
+        Structured variables are unavailable for this tab.
+      </div>
+    );
+  };
+
+  return (
+    <section className="space-y-6 animate-fade-in-up">
+      {/* Overview Block */}
+      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        
+        {/* Sidebar Summary Card */}
+        <aside className="space-y-6">
+          <div className="rounded-2xl glass-panel p-6 card-hover relative overflow-hidden group">
+            {/* Background design glow */}
+            <div className={`absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl opacity-20 transition-all duration-500 group-hover:scale-125 ${
+              rec === "Buy" ? "bg-emerald-500" : rec === "Sell" ? "bg-rose-500" : "bg-amber-500"
+            }`} />
+            
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-mint bg-mint/5 px-2 py-0.5 rounded border border-mint/10">
+                  {symbol}
+                </span>
+                <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink break-words">
+                  {analysis.company_name}
+                </h2>
+              </div>
+              <span className={`shrink-0 border px-3.5 py-1.5 text-sm font-black rounded-lg uppercase tracking-wider ${recColors}`}>
+                {rec}
+              </span>
+            </div>
+
+            <p className="mt-4 text-[13px] font-medium text-steel leading-relaxed">
+              {formatCurrencySymbols(analysis.target_bias, symbol)}
+            </p>
+
+            <div className="mt-6 space-y-4 pt-6 border-t border-line">
+              <MetricBar label="Committee Confidence" value={analysis.confidence * 100} tone="good" />
+              <MetricBar label="Risk Score" value={analysis.risk_score} tone={analysis.risk_score > 65 ? "bad" : analysis.risk_score > 40 ? "warn" : "good"} />
+            </div>
+          </div>
+
+          <TrendSparkline symbol={symbol} history={technical?.data.history} />
+        </aside>
+
+        {/* Thesis & Action Items */}
+        <div className="min-w-0 space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            
+            {/* Thesis Card */}
+            <div className="rounded-2xl glass-panel p-6 card-hover relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="p-1.5 rounded-lg bg-mint/10 text-mint border border-mint/15">
+                  <Target className="h-4 w-4" />
+                </span>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-ink">Investment Thesis</h3>
+              </div>
+              <ul className="space-y-3">
+                {analysis.thesis.map((item, idx) => (
+                  <li 
+                    key={idx} 
+                    className="text-[13px] text-steel leading-relaxed border-l-2 border-mint pl-3 animate-slide-in-left"
+                    style={{ animationDelay: `${(idx + 1) * 0.05}s` }}
+                  >
+                    {formatCurrencySymbols(item, symbol)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Actions Card */}
+            <div className="rounded-2xl glass-panel p-6 card-hover relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="p-1.5 rounded-lg bg-amber/10 text-amber border border-amber/15">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-ink">Next Action Items</h3>
+              </div>
+              <ul className="space-y-3">
+                {analysis.action_items.map((item, idx) => (
+                  <li 
+                    key={idx} 
+                    className="text-[13px] text-steel leading-relaxed border-l-2 border-amber pl-3 animate-slide-in-left"
+                    style={{ animationDelay: `${(idx + 1) * 0.05}s` }}
+                  >
+                    {formatCurrencySymbols(item, symbol)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+          </div>
+
+          {/* Specialist Intelligence Matrix: Redesigned Tabbed Terminal Workbench */}
+          <div className="rounded-2xl glass-panel p-6 border border-line">
+            <div className="flex items-center gap-2 mb-5">
+              <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
+                <Activity className="h-4 w-4" />
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-ink">
+                Specialist Intelligence Workbench
+              </h3>
+            </div>
+
+            {/* Workbench split screen */}
+            <div className="grid gap-6 md:grid-cols-[240px_1fr]">
+              
+              {/* Left sidebar agent navigation */}
+              <nav className="flex flex-col gap-1.5 border-r border-line/50 pr-4 md:pr-6">
+                {analysis.agents.map((agent, index) => {
+                  const Icon = agentIcons[agent.agent] || HelpCircle;
+                  const score = Number(agent.data.score ?? agent.data.fit_score ?? agent.data.risk_score ?? 50);
+                  const isRisk = agent.agent.toLowerCase().includes("risk");
+                  
+                  // Score color status
+                  const statusBg = 
+                    isRisk 
+                      ? (score > 60 ? "bg-berry" : score > 35 ? "bg-amber" : "bg-mint")
+                      : (score >= 60 ? "bg-mint" : score <= 40 ? "bg-berry" : "bg-amber");
+                      
+                  const isSelected = index === activeAgentIndex;
+
+                  return (
+                    <button
+                      key={agent.agent}
+                      onClick={() => setActiveAgentIndex(index)}
+                      className={`w-full flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl transition-all border ${
+                        isSelected 
+                          ? "border-mint/30 bg-mint/5 text-mint font-bold shadow-sm"
+                          : "border-transparent text-steel hover:bg-paper/40 hover:text-ink"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate text-xs tracking-wide uppercase font-semibold">
+                          {agent.agent.replace("Analysis Agent", "").replace("Specialist", "").trim()}
+                        </span>
+                      </div>
+                      
+                      {/* Active Status indicator dot */}
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${statusBg} ${isSelected ? "animate-pulse" : ""}`} />
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Right main display console */}
+              <div className="min-w-0 flex flex-col justify-between animate-fade-in">
+                <div>
+                  <div className="flex items-start justify-between gap-4 border-b border-line pb-3">
+                    <div>
+                      <h4 className="text-sm font-black uppercase text-ink tracking-wide">
+                        {selectedAgent.agent}
+                      </h4>
+                      <p className="text-[11px] text-steel font-medium mt-0.5">
+                        Consensus Confidence: <span className="font-mono-data font-bold text-ink">{Math.round(selectedAgent.confidence * 100)}%</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Summary Narrative */}
+                  <p className="text-[13px] text-steel/90 leading-relaxed mt-4 bg-paper/20 p-4 border border-line/40 rounded-2xl">
+                    {formatCurrencySymbols(selectedAgent.summary, symbol)}
+                  </p>
+
+                  {/* Signals checklist */}
+                  {selectedAgent.signals.length > 0 && (
+                    <div className="mt-5 space-y-3">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
+                        Telemetry Signals Checklist
+                      </span>
+                      <ul className="grid gap-2">
+                        {selectedAgent.signals.map((signal, idx) => (
+                          <li key={idx} className="flex items-start gap-2.5 text-xs text-steel leading-relaxed">
+                            <span className="p-0.5 rounded bg-mint/10 text-mint border border-mint/20 mt-0.5 shrink-0">
+                              <CheckCircle className="h-3 w-3" />
+                            </span>
+                            <span className="break-words">
+                              {formatCurrencySymbols(signal, symbol)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Structured metrics dynamic output */}
+                <div className="mt-6 pt-5 border-t border-line">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-steel block mb-2">
+                    Key Performance Indicators (KPIs)
+                  </span>
+                  {renderAgentTelemetry(selectedAgent)}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* News Feed Card */}
+          <div className="rounded-2xl glass-panel p-6 border border-line card-hover">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
+                <Newspaper className="h-4 w-4" />
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-ink font-sans">Scanned Catalyst Feeds</h3>
+            </div>
+            {analysis.news && analysis.news.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {analysis.news.slice(0, 4).map((item, idx) => (
+                  <a
+                    key={`${item.title}-${idx}`}
+                    href={item.url ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
+                  >
+                    <div className="flex justify-between items-center gap-2 mb-1.5">
+                      <span className="font-mono-data text-[10px] font-black uppercase text-mint tracking-wider bg-mint/5 px-2 py-0.5 rounded border border-mint/10 shrink-0">
+                        {item.source}
+                      </span>
+                      {item.published_at && (
+                        <span className="font-mono-data text-[10px] text-steel/50">
+                          {item.published_at.split("T")[0] || item.published_at}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-[13px] font-bold text-ink leading-snug hover:text-mint transition-colors line-clamp-2">
+                      {formatCurrencySymbols(item.title, symbol)}
+                    </h4>
+                    {item.summary && (
+                      <p className="mt-2 line-clamp-2 text-[12px] text-steel/70 leading-relaxed">
+                        {formatCurrencySymbols(item.summary, symbol)}
+                      </p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 border border-dashed border-line rounded-xl bg-paper/10 text-xs text-steel">
+                No recent news catalysts found for this stock.
+              </div>
+            )}
+          </div>
+
+        </div>
+
       </div>
     </section>
   );
