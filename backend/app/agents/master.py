@@ -165,7 +165,7 @@ class MasterAgent:
                             summary=summary,
                             confidence=round(max(0.1, min(1.0, confidence)), 2),
                             signals=signals,
-                            data=data_dict
+                            data={**a.data, **data_dict}
                         ))
                     else:
                         dynamic_agents.append(a)
@@ -186,6 +186,7 @@ class MasterAgent:
             action_items=action_items,
             agents=agents,
             news=news_items,
+            currency=snapshot.currency,
         )
 
 
@@ -222,7 +223,16 @@ async def _search_yahoo_ticker(query_str: str) -> str | None:
                     data = response.json()
                     quotes = data.get("quotes", [])
 
-                    # Priority 1: Equity in target countries (by exchange or symbol suffix)
+                    # Priority 1: Indian equity listings (.NS, .BO, NSE, BSE)
+                    for quote in quotes:
+                        symbol = quote.get("symbol")
+                        exch = quote.get("exchange")
+                        qtype = quote.get("quoteType")
+                        if symbol and qtype == "EQUITY":
+                            if symbol.upper().endswith((".NS", ".BO")) or (exch and exch.upper() in ("NSE", "BSE")):
+                                return symbol
+
+                    # Priority 2: Other target countries (by exchange or symbol suffix)
                     for quote in quotes:
                         symbol = quote.get("symbol")
                         exch = quote.get("exchange")
@@ -231,14 +241,14 @@ async def _search_yahoo_ticker(query_str: str) -> str | None:
                             if exch in TARGET_EXCHANGES or symbol.endswith(TARGET_SUFFIXES):
                                 return symbol
 
-                    # Priority 2: Any general equity
+                    # Priority 3: Any general equity
                     for quote in quotes:
                         symbol = quote.get("symbol")
                         qtype = quote.get("quoteType")
                         if symbol and qtype == "EQUITY":
                             return symbol
 
-                    # Priority 3: First available symbol of any type
+                    # Priority 4: First available symbol of any type
                     if quotes and quotes[0].get("symbol"):
                         return quotes[0]["symbol"]
         except Exception as e:

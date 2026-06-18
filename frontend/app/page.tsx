@@ -34,7 +34,7 @@ const agentSteps = [
   { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Calculating 14-day RSI, MACD trends, and volume profiles..." },
   { name: "Sentiment Analysis Agent", icon: Brain, desc: "Gauging retail buzz, fear-greed proxies, and social bias..." },
   { name: "Risk Analysis Agent", icon: Shield, desc: "Measuring asset beta, historical drawdown, and volatility risk..." },
-  { name: "Investment Committee Chair", icon: Activity, desc: "Synthesizing consensus and creating action roadmap..." },
+  { name: "Consensus Synthesis Coordinator", icon: Activity, desc: "Synthesizing consensus and creating action roadmap..." },
 ];
 
 export default function Home() {
@@ -48,7 +48,55 @@ export default function Home() {
   const [activeAgent, setActiveAgent] = useState(0);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
-  const symbols = useMemo(() => result?.symbols.join(" / ") ?? "IDLE", [result]);
+  const [searchVal, setSearchVal] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const symbols = useMemo(() => {
+    if (!result) return "IDLE";
+    return result.symbols.map(s => s.split(".")[0]).join(" / ");
+  }, [result]);
+
+  // Click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".relative-autocomplete")) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Debounced autocomplete search
+  useEffect(() => {
+    if (searchVal.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const { searchCompanies } = await import("@/lib/api");
+        const list = await searchCompanies(searchVal);
+        setSuggestions(list);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 100);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchVal]);
+
+  const selectSuggestion = (suggestion: any) => {
+    setQuery(`Analyze ${suggestion.symbol} (${suggestion.name})`);
+    setSearchVal("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   // Sync theme setup on mount
   useEffect(() => {
@@ -157,6 +205,51 @@ export default function Home() {
               <h2 className="text-sm font-black uppercase tracking-wider text-ink">Master Control Deck</h2>
             </div>
 
+            {/* Autocomplete Company Search */}
+            <div className="relative relative-autocomplete">
+              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="company-search">
+                Quick Company Search
+              </label>
+              <div className="relative mt-2 flex items-center">
+                <input
+                  id="company-search"
+                  type="text"
+                  value={searchVal}
+                  onChange={(event) => setSearchVal(event.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  className="h-10 w-full border border-line bg-terminalBg/40 pl-9 pr-10 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint placeholder-steel/45"
+                  placeholder="Type company name (e.g. Cian Agro, Apple...)"
+                  autoComplete="off"
+                />
+                <Search className="absolute left-3 h-3.5 w-3.5 text-steel/50" />
+                {searchLoading && (
+                  <Loader2 className="absolute right-3 h-3.5 w-3.5 animate-spin text-mint" />
+                )}
+              </div>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-line bg-slate-950/95 backdrop-blur-md p-1 shadow-2xl animate-fade-in divide-y divide-line/20">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.symbol}
+                      type="button"
+                      onClick={() => selectSuggestion(suggestion)}
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 text-left text-xs text-steel hover:bg-mint/5 hover:text-mint rounded-lg transition-colors group"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="font-bold text-ink truncate group-hover:text-mint transition-colors">{suggestion.name}</p>
+                        <p className="text-[10px] text-steel/50 font-mono-data mt-0.5">{suggestion.symbol}</p>
+                      </div>
+                      <span className="shrink-0 font-mono-data font-black text-[9px] uppercase tracking-widest bg-paper border border-line text-steel/70 px-1.5 py-0.5 rounded">
+                        {suggestion.exchange}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Prompt input */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="query">
@@ -254,7 +347,7 @@ export default function Home() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" aria-hidden />
-                  <span className="text-xs uppercase tracking-widest font-black">Run Committee Review</span>
+                  <span className="text-xs uppercase tracking-widest font-black">Run Consensus Synthesis</span>
                 </>
               )}
             </button>
@@ -356,10 +449,10 @@ export default function Home() {
               <div className="border border-line bg-paper p-6 rounded-2xl relative overflow-hidden group">
                 <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 w-64 h-64 rounded-full bg-gradient-to-bl from-mint/10 to-transparent blur-3xl" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-mint bg-mint/5 px-2.5 py-0.5 rounded border border-mint/10 inline-block">
-                  Committee Consensus Verdict
+                  Consensus Synthesis Verdict
                 </p>
                 <h3 className="mt-3 text-lg font-bold tracking-tight text-ink leading-relaxed">
-                  {formatCurrencySymbols(result.summary, result.analyses[0]?.symbol)}
+                  {formatCurrencySymbols(result.summary, result.analyses[0]?.symbol, result.analyses[0]?.currency)}
                 </h3>
                 <p className="mt-4 text-[11px] font-medium text-steel/60 leading-relaxed border-t border-line pt-3">
                   Disclaimer: {result.disclaimer}
