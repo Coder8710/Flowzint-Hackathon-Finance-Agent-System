@@ -1,9 +1,13 @@
+import os
 import logging
 from functools import lru_cache
 from typing import List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Disable EC2 metadata service globally to prevent boto3/botocore connection hangs on local machines
+os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +38,19 @@ class Settings(BaseSettings):
     @property
     def has_llm_key(self) -> bool:
         """Check if at least one LLM API key is configured or default AWS credentials are used."""
-        return bool(self.openai_api_key or self.gemini_api_key or (self.aws_access_key_id and self.aws_secret_access_key) or self.crewai_model.startswith("bedrock/"))
+        if self.openai_api_key or self.gemini_api_key or (self.aws_access_key_id and self.aws_secret_access_key):
+            return True
+        if self.crewai_model.startswith("bedrock/"):
+            # Check if standard AWS credentials exist in env or local AWS CLI profiles
+            if os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE"):
+                return True
+            try:
+                import boto3
+                session = boto3.Session()
+                return session.get_credentials() is not None
+            except Exception:
+                return False
+        return False
 
     @property
     def has_news_key(self) -> bool:

@@ -47,8 +47,8 @@ class FinanceCrew:
         horizon: str,
         portfolio_context: str | None,
     ) -> dict[str, Any]:
-        if not (self.settings.openai_api_key or self.settings.gemini_api_key or (self.settings.aws_access_key_id and self.settings.aws_secret_access_key) or self.settings.crewai_model.startswith("bedrock/")):
-            raise CrewAIUnavailableError("CrewAI requires OPENAI_API_KEY, GEMINI_API_KEY, explicit AWS keys, or AWS CLI auth for bedrock.")
+        if not self.settings.has_llm_key:
+            raise CrewAIUnavailableError("CrewAI requires a configured LLM provider and credentials.")
 
         if self.settings.openai_api_key:
             os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key

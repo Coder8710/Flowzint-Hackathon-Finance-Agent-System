@@ -215,7 +215,7 @@ export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
           </div>
 
           <div className="mt-6 space-y-4 pt-6 border-t border-line">
-            <MetricBar label="Consensus Confidence" value={analysis.confidence * 100} tone="good" />
+            <MetricBar label="AI Conviction Score" value={analysis.confidence * 100} tone="good" />
             <MetricBar label="Risk Score" value={analysis.risk_score} tone={analysis.risk_score > 65 ? "bad" : analysis.risk_score > 40 ? "warn" : "good"} />
           </div>
         </div>
@@ -326,7 +326,7 @@ export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
                     {selectedAgent.agent}
                   </h4>
                   <p className="text-[11px] text-steel font-medium mt-0.5">
-                    Consensus Confidence: <span className="font-mono-data font-bold text-ink">{Math.round(selectedAgent.confidence * 100)}%</span>
+                    AI Conviction: <span className="font-mono-data font-bold text-ink">{Math.round(selectedAgent.confidence * 100)}%</span>
                   </p>
                 </div>
               </div>
@@ -379,11 +379,7 @@ export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
             {analysis.news.slice(0, 4).map((item, idx) => (
               <a
                 key={`${item.title}-${idx}`}
-                href={
-                  item.url?.includes("tradingview.com")
-                    ? `https://www.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`
-                    : (item.url ?? "#")
-                }
+                href={`https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"

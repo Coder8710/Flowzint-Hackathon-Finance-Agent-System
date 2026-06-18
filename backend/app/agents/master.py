@@ -171,7 +171,7 @@ class MasterAgent:
                         dynamic_agents.append(a)
                 agents = dynamic_agents
                 composite = _weighted_score(agents)
-        except CrewAIUnavailableError as exc:
+        except Exception as exc:
             logger.info("CrewAI committee synthesis skipped: %s. Using deterministic fallback.", exc)
 
 
@@ -192,8 +192,25 @@ class MasterAgent:
 
 async def _search_yahoo_ticker(query_str: str) -> str | None:
     """Query Yahoo Finance Search API to find the best matching stock ticker in US, India, Japan, China, or Dubai."""
-    import httpx
+    # Manual overrides for popular/ambiguous ticker terms
+    overrides = {
+        "bse": "BSE.NS",
+        "bse share": "BSE.NS",
+        "bse limited": "BSE.NS",
+        "bombay stock exchange": "BSE.NS",
+        "bombay stock exchange limited": "BSE.NS",
+        "sensex": "^BSESN",
+        "nifty": "^NSEI",
+        "nifty 50": "^NSEI",
+        "nifty50": "^NSEI",
+    }
+    q_clean = query_str.strip().lower()
+    if q_clean in overrides:
+        return overrides[q_clean]
+
+    from curl_cffi import requests as requests_cffi
     from urllib.parse import quote_plus
+    import asyncio
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -214,43 +231,47 @@ async def _search_yahoo_ticker(query_str: str) -> str | None:
         ".AE", ".DU"
     )
 
+    ACCEPTED_QTYPES = {"EQUITY", "ETF", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY", "CRYPTOCURRENCY"}
+
+    def run_cffi(q: str):
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(q)}&quotesCount=8&newsCount=0"
+        return requests_cffi.get(url, headers=headers, impersonate="chrome", timeout=5)
+
     async def do_search(q: str) -> str | None:
-        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={quote_plus(q)}"
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                response = await client.get(url, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    quotes = data.get("quotes", [])
+            response = await asyncio.to_thread(run_cffi, q)
+            if response.status_code == 200:
+                data = response.json()
+                quotes = data.get("quotes", [])
 
-                    # Priority 1: Indian equity listings (.NS, .BO, NSE, BSE)
-                    for quote in quotes:
-                        symbol = quote.get("symbol")
-                        exch = quote.get("exchange")
-                        qtype = quote.get("quoteType")
-                        if symbol and qtype == "EQUITY":
-                            if symbol.upper().endswith((".NS", ".BO")) or (exch and exch.upper() in ("NSE", "BSE")):
-                                return symbol
-
-                    # Priority 2: Other target countries (by exchange or symbol suffix)
-                    for quote in quotes:
-                        symbol = quote.get("symbol")
-                        exch = quote.get("exchange")
-                        qtype = quote.get("quoteType")
-                        if symbol and qtype == "EQUITY":
-                            if exch in TARGET_EXCHANGES or symbol.endswith(TARGET_SUFFIXES):
-                                return symbol
-
-                    # Priority 3: Any general equity
-                    for quote in quotes:
-                        symbol = quote.get("symbol")
-                        qtype = quote.get("quoteType")
-                        if symbol and qtype == "EQUITY":
+                # Priority 1: Indian listings (.NS, .BO, NSE, BSE)
+                for quote in quotes:
+                    symbol = quote.get("symbol")
+                    exch = quote.get("exchange")
+                    qtype = quote.get("quoteType")
+                    if symbol and qtype in ACCEPTED_QTYPES:
+                        if symbol.upper().endswith((".NS", ".BO")) or (exch and exch.upper() in ("NSE", "BSE")):
                             return symbol
 
-                    # Priority 4: First available symbol of any type
-                    if quotes and quotes[0].get("symbol"):
-                        return quotes[0]["symbol"]
+                # Priority 2: Other target countries (by exchange or symbol suffix)
+                for quote in quotes:
+                    symbol = quote.get("symbol")
+                    exch = quote.get("exchange")
+                    qtype = quote.get("quoteType")
+                    if symbol and qtype in ACCEPTED_QTYPES:
+                        if exch in TARGET_EXCHANGES or symbol.endswith(TARGET_SUFFIXES):
+                            return symbol
+
+                # Priority 3: Any general accepted type
+                for quote in quotes:
+                    symbol = quote.get("symbol")
+                    qtype = quote.get("quoteType")
+                    if symbol and qtype in ACCEPTED_QTYPES:
+                        return symbol
+
+                # Priority 4: First available symbol of any type
+                if quotes and quotes[0].get("symbol"):
+                    return quotes[0]["symbol"]
         except Exception as e:
             logger.error("Error dynamically searching Yahoo ticker for %s: %s", q, e)
         return None

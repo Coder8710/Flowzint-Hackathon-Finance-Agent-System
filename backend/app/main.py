@@ -1,4 +1,10 @@
 import logging
+import time
+from functools import lru_cache
+
+# Simple in-memory search cache: {query_lower: (timestamp, results)}
+_search_cache: dict = {}
+_SEARCH_CACHE_TTL = 60  # seconds
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -515,3 +521,114 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
             status_code=500,
             detail="An unexpected error occurred during analysis. Please try again.",
         )
+
+
+@app.get("/search")
+async def search(q: str):
+    """Fast cached Yahoo Finance autocomplete — prioritises Indian (NSE/BSE) listings."""
+    import httpx
+    from urllib.parse import quote_plus
+
+    # Yahoo internal exchange codes → clean display names
+    EXCHANGE_MAP = {
+        "NSI": "NSE", "NSE": "NSE",
+        "BOM": "BSE", "BSE": "BSE",
+        "NYQ": "NYSE", "NMS": "NASDAQ", "ASE": "AMEX",
+        "JPX": "JPX", "TYO": "TYO", "TKS": "TKS",
+        "SHH": "SSE", "SHE": "SZSE", "HKG": "HKEX",
+        "DFM": "DFM", "DUB": "DFM",
+    }
+    INDIAN_EXCHANGES = {"NSI", "NSE", "BOM", "BSE"}
+
+    query_str = q.strip().lower()
+    if len(query_str) < 1:
+        return []
+
+    # Return cached result if still fresh
+    if query_str in _search_cache:
+        ts, cached = _search_cache[query_str]
+        if time.time() - ts < _SEARCH_CACHE_TTL:
+            return cached
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+    url = (
+        f"https://query2.finance.yahoo.com/v1/finance/search"
+        f"?q={quote_plus(query_str)}"
+        f"&quotesCount=8&newsCount=0"
+        f"&enableFuzzyQuery=true&enableNavLinks=false&enableEnhancedTrivialQuery=true"
+    )
+
+    from curl_cffi import requests as requests_cffi
+    import asyncio
+
+    def run_cffi():
+        return requests_cffi.get(url, headers=headers, impersonate="chrome", timeout=3)
+
+    try:
+        response = await asyncio.to_thread(run_cffi)
+        if response.status_code == 200:
+            data = response.json()
+            quotes = data.get("quotes", [])
+            results = []
+            ACCEPTED_QTYPES = {"EQUITY", "ETF", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY", "CRYPTOCURRENCY"}
+            for quote in quotes:
+                symbol = quote.get("symbol")
+                qtype = quote.get("quoteType")
+                if symbol and qtype in ACCEPTED_QTYPES:
+                    raw_exch = (quote.get("exchange") or "").upper()
+                    display_exch = EXCHANGE_MAP.get(raw_exch, raw_exch or "N/A")
+                    results.append({
+                        "symbol": symbol,
+                        "name": quote.get("longname") or quote.get("shortname") or symbol,
+                        "exchange": display_exch,
+                        "quoteType": qtype,
+                        "_raw_exch": raw_exch,  # kept for sorting only
+                    })
+
+            # Force-inject BSE.NS if searching for BSE-related keywords and not already present
+            bse_keywords = {"bse", "bse share", "bse limited", "bombay stock exchange"}
+            inject_bse = query_str in bse_keywords or any(kw in query_str for kw in ("bse share", "bse limited", "bombay stock exchange"))
+            
+            has_bse = any(r["symbol"].upper() == "BSE.NS" for r in results)
+            if inject_bse and not has_bse:
+                results.append({
+                    "symbol": "BSE.NS",
+                    "name": "BSE Limited",
+                    "exchange": "NSE",
+                    "quoteType": "EQUITY",
+                    "_raw_exch": "NSE"
+                })
+
+            # Prioritise Indian listings first, with BSE.NS at the absolute top and ^BSESN second
+            def sort_key(item):
+                sym = item["symbol"].upper()
+                if sym == "BSE.NS":
+                    return -2
+                if sym == "^BSESN":
+                    return -1
+                if sym.endswith((".NS", ".BO")) or item["_raw_exch"] in INDIAN_EXCHANGES:
+                    return 0
+                return 1
+
+            results.sort(key=sort_key)
+
+            # Remove internal field before returning
+            for r in results:
+                r.pop("_raw_exch", None)
+
+            # Cache and prune old entries
+            _search_cache[query_str] = (time.time(), results)
+            if len(_search_cache) > 500:
+                oldest = sorted(_search_cache.items(), key=lambda x: x[1][0])[:100]
+                for k, _ in oldest:
+                    _search_cache.pop(k, None)
+
+            return results
+    except Exception as exc:
+        logger.error("Search error for %s: %s", query_str, exc)
+    return []

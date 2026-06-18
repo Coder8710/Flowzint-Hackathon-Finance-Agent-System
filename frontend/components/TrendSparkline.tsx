@@ -1,9 +1,10 @@
 type TrendSparklineProps = {
   symbol?: string;
   history?: unknown;
+  currency?: string;
 };
 
-export function TrendSparkline({ symbol, history }: TrendSparklineProps) {
+export function TrendSparkline({ symbol, history, currency }: TrendSparklineProps) {
   const rows = Array.isArray(history) ? history : [];
   const closes = rows
     .map((row) => (typeof row === "object" && row && "close" in row ? Number(row.close) : NaN))
@@ -37,7 +38,13 @@ export function TrendSparkline({ symbol, history }: TrendSparklineProps) {
   // Area fill: line points + close at bottom
   const areaPoints = `0,90 ${linePoints} 100,90`;
 
-  const currencySymbol = symbol?.toUpperCase().endsWith(".NS") || symbol?.toUpperCase().endsWith(".BO") ? "₹" : "$";
+  const currencySymbol = 
+    currency?.toUpperCase() === "INR" || 
+    symbol?.toUpperCase().endsWith(".NS") || 
+    symbol?.toUpperCase().endsWith(".BO") 
+      ? "₹" 
+      : "$";
+
 
   return (
     <div className="rounded-xl glass-panel p-4 animate-fade-in card-hover">

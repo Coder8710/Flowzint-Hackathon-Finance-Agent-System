@@ -43,6 +43,7 @@ class CompanyAnalysis(BaseModel):
     action_items: list[str]
     agents: list[AgentFinding]
     news: list[NewsItem] = Field(default_factory=list)
+    currency: str | None = None
 
 
 class AnalysisResponse(BaseModel):
