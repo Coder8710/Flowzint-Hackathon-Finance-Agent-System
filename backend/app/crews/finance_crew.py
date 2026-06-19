@@ -122,16 +122,38 @@ class FinanceCrew:
         news_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Step 1: Review the provided news items. "
-                f"Step 2: Search the web for any critical updates from the last 48 hours. "
-                f"Step 3: Cross-reference against authoritative sources (Reuters, Bloomberg, SEC EDGAR). "
-                f"Step 4: Filter out clickbait and unverified rumors. "
-                f"Step 5: Summarize the most impactful news for {snapshot.symbol}."
+                f"NEWS RESEARCH TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"The evidence payload contains {len(news_items)} pre-fetched news headlines. "
+                f"Use them as your starting point, then conduct additional web research.\n\n"
+                f"MANDATORY RESEARCH STEPS:\n"
+                f"Step 1: Read all news items in the 'news' array of the evidence payload. "
+                f"Identify the single most market-moving headline.\n"
+                f"Step 2: Search the web for '{snapshot.company_name} earnings results' or "
+                f"'{snapshot.symbol} quarterly results' to find the most recent earnings report. "
+                f"Compare actual results vs analyst consensus estimates.\n"
+                f"Step 3: Search '{snapshot.company_name} SEC filing' or "
+                f"'{snapshot.company_name} BSE filing SEBI' (for Indian stocks) for any recent "
+                f"material event disclosures (8-K equivalent, quarterly results, key management changes).\n"
+                f"Step 4: Search '{snapshot.company_name} analyst upgrade downgrade' to find "
+                f"any recent rating changes. Note the analyst firm, old rating, new rating, and price target.\n"
+                f"Step 5: Search '{snapshot.company_name} insider buying selling' for any "
+                f"recent director/officer purchases or sales of shares.\n"
+                f"Step 6: Cross-reference your findings against Tier 1 authoritative sources "
+                f"(Reuters, Bloomberg, SEC EDGAR, BSE India filings). Filter out unverified rumors "
+                f"and social media speculation — label them as such.\n"
+                f"Step 7: Assign a catalyst severity tier: tier1_critical (earnings/filing), "
+                f"tier2_high (analyst rating change, M&A), tier3_medium (management comment, "
+                f"macro data), tier4_noise (social media, blogs). Base your confidence_score on tier.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers."
             ),
             expected_output=(
-                'A single valid JSON object: {"headline_summary": "...", "catalyst_type": '
-                '"earnings|macro|regulatory|geopolitical|M&A", "impact_direction": '
-                '"bullish|bearish|neutral", "confidence_score": 0-100, "sources": ["url1", "url2"]}'
+                'A single valid JSON object: {"headline_summary": "...", '
+                '"catalyst_type": "earnings|guidance_revision|analyst_rating|regulatory|geopolitical|M&A|macro|insider_trade|none", '
+                '"catalyst_severity": "tier1_critical|tier2_high|tier3_medium|tier4_noise|none", '
+                '"impact_direction": "strongly_bullish|bullish|neutral|bearish|strongly_bearish", '
+                '"earnings_surprise_pct": null or number, '
+                '"guidance_revision": "raised|lowered|maintained|not_applicable", '
+                '"confidence_score": 0-100, "sources": ["url1", "url2"]}'
             ),
             agent=news_agent,
             async_execution=False,
@@ -139,17 +161,41 @@ class FinanceCrew:
         fundamental_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Step 1: Analyze the PE ratio, profit margins, and revenue growth. "
-                f"Step 2: Assess the debt-to-equity ratio for solvency risk. "
-                f"Step 3: Run DCF valuation and comparable company analysis. "
-                f"Step 4: Conclude on the intrinsic valuation. "
-                f"Mark unavailable metrics as null."
+                f"FUNDAMENTAL ANALYSIS TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"The evidence payload contains key financial metrics: "
+                f"price={snapshot.price}, pe_ratio={snapshot.pe_ratio}, "
+                f"revenue_growth={snapshot.revenue_growth}, profit_margin={snapshot.profit_margin}, "
+                f"debt_to_equity={snapshot.debt_to_equity}, market_cap={snapshot.market_cap}.\n"
+                f"Use these as your starting data points and research any missing values.\n\n"
+                f"MANDATORY RESEARCH STEPS:\n"
+                f"Step 1: Evaluate every ratio in the evidence payload. Classify each as "
+                f"'strong / neutral / weak' relative to the company's sector peers.\n"
+                f"Step 2: Search '{snapshot.company_name} revenue profit margin quarterly results' "
+                f"to verify and supplement the financial metrics in the evidence payload.\n"
+                f"Step 3: Run a DCF valuation. Use the revenue_growth from evidence as your 5-year "
+                f"growth rate assumption (or find analyst consensus if unavailable). Apply WACC of "
+                f"10-12% for US blue-chips, 12-14% for Indian/Asian mid-caps, 14-16% for small-caps. "
+                f"Use a terminal growth rate of 2.5-3% for stable companies, 1-2% for cyclicals.\n"
+                f"Step 4: Search '{snapshot.company_name} competitors peer comparison EV EBITDA' "
+                f"to find 2-3 direct competitors and their valuation multiples for comparison.\n"
+                f"Step 5: Search '{snapshot.company_name} annual report management quality "
+                f"promoter pledging insider ownership' to assess business quality and management trust.\n"
+                f"Step 6: Search '{snapshot.company_name} auditor change restatement related party "
+                f"red flag' to identify any forensic accounting red flags.\n"
+                f"Step 7: Determine the economic moat rating: wide (ROIC consistently > 15% for 5+ years), "
+                f"narrow (some competitive advantage but erosion risk), none (commodity business with no pricing power).\n"
+                f"Step 8: Make a final recommendation: buy (>15% upside vs DCF), hold (within 10%), "
+                f"sell (overvalued by >15%), avoid (fundamental deterioration).\n\n"
+                f"Mark any metric you cannot source as null. Return ONLY valid raw JSON."
             ),
             expected_output=(
-                'A single valid JSON object: {"intrinsic_value_estimate": "$X", '
-                '"current_price_premium_discount_pct": "X%", "key_metrics": '
-                '{"pe_ratio": X, "ev_ebitda": X, "fcf_yield_pct": X, "roic_pct": X, '
-                '"debt_to_equity": X}, "moat_rating": "wide|narrow|none", '
+                'A single valid JSON object: {"intrinsic_value_estimate": "$X or ₹X", '
+                '"current_price_premium_discount_pct": "X% premium or X% discount", '
+                '"dcf_wacc_used_pct": X, "terminal_growth_rate_pct": X, '
+                '"key_metrics": {"pe_ratio": X, "ev_ebitda": X, "fcf_yield_pct": X, "roic_pct": X, "debt_to_equity": X}, '
+                '"peer_comparison": [{"name": "PeerCo", "pe": X, "ev_ebitda": X}], '
+                '"moat_rating": "wide|narrow|none", '
+                '"red_flags": ["flag1"] or [], '
                 '"recommendation": "buy|hold|sell|avoid"}'
             ),
             agent=fundamental_agent,
@@ -159,17 +205,41 @@ class FinanceCrew:
         technical_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Step 1: Search for recent OHLCV data and indicator readings. "
-                f"Step 2: Evaluate the current price against moving averages, RSI, and MACD. "
-                f"Step 3: Identify support/resistance using Dow Theory and Wyckoff method. "
-                f"Step 4: Determine entry zone, stop loss, and target. "
-                f"Output 'wait' if no clear setup exists."
+                f"TECHNICAL ANALYSIS TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"The evidence payload contains 6 months of historical OHLCV data in the "
+                f"'market_snapshot' section. The current price is {snapshot.price}. "
+                f"Use this as your primary data source and supplement with web searches.\n\n"
+                f"MANDATORY RESEARCH STEPS (Elder Triple Screen method):\n"
+                f"SCREEN 1 — WEEKLY TREND: Search '{snapshot.symbol} weekly chart 13-week EMA trend' "
+                f"to identify the primary market tide. Is it bullish, bearish, or sideways? "
+                f"This establishes your DIRECTIONAL BIAS — only take trades aligned with this.\n"
+                f"SCREEN 2 — DAILY SETUP: Search '{snapshot.symbol} daily chart RSI MACD "
+                f"indicator reading' to find the current RSI (14), MACD histogram direction, "
+                f"and Bollinger Band width. Look for an oversold RSI bounce in an uptrend, or "
+                f"an overbought RSI rejection in a downtrend — that is your entry trigger.\n"
+                f"SCREEN 3 — ENTRY TIMING: Search '{snapshot.symbol} key support resistance "
+                f"level price action breakout' to identify the precise entry zone, stop loss "
+                f"(below nearest key support), and price target (next key resistance).\n"
+                f"VOLUME CHECK: Confirm that volume is expanding on price breakouts and "
+                f"contracting on pullbacks. Search '{snapshot.symbol} volume OBV trend'.\n"
+                f"PATTERN RECOGNITION: Identify any classical chart pattern if present: "
+                f"Head & Shoulders, Double Top/Bottom, Bull/Bear Flag, Cup & Handle, Triangle.\n"
+                f"RISK/REWARD: Calculate the risk-reward ratio = (Target - Entry) / (Entry - StopLoss). "
+                f"Only recommend a 'buy' or 'sell' if R:R >= 2:1. Otherwise output 'wait'.\n\n"
+                f"The news context from the news agent is provided — align technical signal with "
+                f"fundamental news direction where possible.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers."
             ),
             expected_output=(
-                'A single valid JSON object: {"trend_direction": "uptrend|downtrend|sideways", '
+                'A single valid JSON object: {"weekly_trend": "bullish|bearish|sideways", '
+                '"daily_setup": "pullback_in_uptrend|consolidation|breakdown|no_clear_setup", '
+                '"trend_direction": "uptrend|downtrend|sideways", '
                 '"rsi_reading": X, "macd_signal": "bullish_cross|bearish_cross|neutral", '
-                '"volume_confirmation": true|false, "key_support": "$X", "key_resistance": "$X", '
-                '"entry_zone": "$X-$Y", "stop_loss": "$X", "target_price": "$X", '
+                '"volume_confirmation": true|false, "volume_trend": "expanding|contracting|neutral", '
+                '"chart_pattern": "name or none", '
+                '"key_support": "$X or ₹X", "key_resistance": "$X or ₹X", '
+                '"entry_zone": "$X-$Y or ₹X-₹Y", "stop_loss": "$X or ₹X", '
+                '"target_price": "$X or ₹X", "risk_reward_ratio": X, '
                 '"signal": "buy|sell|wait"}'
             ),
             agent=technical_agent,
@@ -179,16 +249,41 @@ class FinanceCrew:
         sentiment_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Step 1: Search for {snapshot.symbol} sentiment on Reddit, StockTwits, and Twitter/X. "
-                f"Step 2: Check put/call ratio and short interest. "
-                f"Step 3: Assess crowd positioning (retail vs institutional). "
-                f"Step 4: Determine if contrarian signal exists (extremes > +80 or < -80). "
-                f"Step 5: Flag as confirming or conflicting secondary signal."
+                f"SENTIMENT ANALYSIS TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"You have the news, fundamental, and technical analyses from the previous agents "
+                f"as context. Your job is to determine if the CROWD's current positioning "
+                f"CONFIRMS or CONTRADICTS what the fundamentals and technicals say.\n\n"
+                f"MANDATORY RESEARCH STEPS (weighted composite score):\n"
+                f"Step 1 (40% weight): Search Barchart, CBOE, or Market Chameleon for "
+                f"'{snapshot.symbol} put call ratio options'. For Indian stocks, search "
+                f"'NSE {snapshot.symbol} options open interest put call ratio'. "
+                f"Record the current put/call ratio value.\n"
+                f"Step 2 (25% weight): Search Finviz or Ortex for '{snapshot.symbol} short interest "
+                f"percent float'. For Indian stocks, search 'NSE short selling {snapshot.symbol}'. "
+                f"Record the current short interest as a % of float.\n"
+                f"Step 3 (20% weight): Search Reddit r/wallstreetbets r/stocks for '{snapshot.symbol}' "
+                f"and StockTwits for the ticker sentiment. Count approximate bullish vs bearish posts. "
+                f"Also check Twitter/X cashtag ${snapshot.symbol}. For Indian stocks, additionally "
+                f"search r/IndiaInvestments and Moneycontrol community.\n"
+                f"Step 4 (15% weight): Search Google Trends for '{snapshot.company_name} stock' to "
+                f"check if retail search volume is spiking (a FOMO warning signal).\n"
+                f"Step 5: Calculate a weighted composite sentiment score from -100 to +100 based "
+                f"on the above four inputs. Positive = bullish crowd, negative = bearish crowd.\n"
+                f"Step 6: Check for contrarian signal: if score > +70 (crowd too euphoric, "
+                f"fade the crowd = bearish contrarian) or < -70 (crowd too panicked, "
+                f"buy the fear = bullish contrarian). Between -30 and +30 = neutral, "
+                f"do NOT use as an override signal.\n"
+                f"Step 7: State explicitly whether this sentiment reading CONFIRMS the "
+                f"fundamental/technical direction, CONFLICTS with it, or is NEUTRAL/irrelevant.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers."
             ),
             expected_output=(
                 'A single valid JSON object: {"sentiment_score": -100 to 100, '
                 '"fear_greed_proxy": "extreme_fear|fear|neutral|greed|extreme_greed", '
-                '"social_buzz_volume": "low|medium|high", '
+                '"put_call_ratio": X or null, "short_interest_pct_float": X or null, '
+                '"social_buzz_volume": "low|medium|high|viral", '
+                '"social_sentiment_breakdown": {"bullish_pct": X, "bearish_pct": X, "neutral_pct": X}, '
+                '"google_trends_signal": "normal|rising|spiking", '
                 '"positioning_bias": "retail_long|institutional_short|balanced|mixed", '
                 '"contrarian_signal": true|false, "contrarian_rationale": "..."}'
             ),
@@ -199,42 +294,134 @@ class FinanceCrew:
         risk_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Identify the top 3 ways an investor could lose money holding this stock right now. "
-                f"You MUST return your findings as a single valid JSON object with exactly this schema:\n"
-                f"{{\n"
-                f'  "risks": ["risk1", "risk2", "risk3"],\n'
-                f'  "risk_score": X\n'
-                f"}}\n"
-                f"Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+                f"RISK ANALYSIS TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"The evidence payload shows: beta={snapshot.beta}, debt_to_equity={snapshot.debt_to_equity}, "
+                f"market_cap={snapshot.market_cap}. You also have the news, fundamental, technical, "
+                f"and sentiment findings from previous agents as additional context.\n\n"
+                f"Your job is to be an adversarial devil's advocate. Assume the bulls are wrong. "
+                f"Find every material reason this investment could cause permanent capital loss.\n\n"
+                f"MANDATORY RESEARCH STEPS:\n"
+                f"Step 1 (Business Risk): Search '{snapshot.company_name} competitors disruption "
+                f"market share threat' to identify the top competitive risk. Is there a newer, "
+                f"cheaper, or better-funded competitor threatening the core business?\n"
+                f"Step 2 (Financial Risk): Use the debt_to_equity={snapshot.debt_to_equity} from "
+                f"evidence payload. Search '{snapshot.company_name} debt maturity refinancing "
+                f"interest coverage FCF' to determine if the balance sheet is a risk.\n"
+                f"Step 3 (Regulatory/Legal Risk): Search '{snapshot.company_name} SEBI SEC regulatory "
+                f"action lawsuit probe investigation' for any active government/regulatory risks.\n"
+                f"Step 4 (India-specific): If this is an Indian company (ticker ends in .NS or .BO), "
+                f"search '{snapshot.company_name} promoter pledge SEBI disclosure' to check if "
+                f"promoters have pledged shares (a critical forced-selling risk above 30%).\n"
+                f"Step 5 (Macro Risk): Given beta={snapshot.beta}, assess the sensitivity to broad "
+                f"market shocks. Is this stock a high-beta amplifier of market downturns?\n"
+                f"Step 6 (Liquidity Risk): Check the average daily trading volume relative to market_cap. "
+                f"Low ADV relative to position size = significant execution risk on exit.\n"
+                f"Step 7: Construct the TAIL RISK SCENARIO — describe the single worst-case event "
+                f"chain that could cause a >40% drawdown. Be specific (not 'macro uncertainty').\n\n"
+                f"Assign a risk_score from 0-100 (0 = no risk, 100 = near-certain total loss). "
+                f"NEVER assign below 20 or above 95.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers."
             ),
-            expected_output="A single valid JSON object with keys: risks, risk_score",
+            expected_output=(
+                'A single valid JSON object: {"risks": ["risk1", "risk2", "risk3"], '
+                '"risk_score": X, "risk_level": "low|medium|high|critical", '
+                '"tail_risk_scenario": "specific worst-case description", '
+                '"liquidity_risk": "low|medium|high", '
+                '"regulatory_risk": "none|low|medium|high", '
+                '"financial_stress_risk": "none|low|medium|high", '
+                '"key_risk_categories": ["business", "financial", "regulatory", "macro", "liquidity"]}'
+            ),
             agent=risk_agent,
             async_execution=False,
         )
         portfolio_task = Task(
             description=(
                 f"{context}\n\n"
-                f"Task: Cross-reference the user's profile (Risk Tolerance: {risk_tolerance}, Horizon: {horizon}, Context: {portfolio_context}) with the asset's beta and volatility. "
-                f"You MUST return your findings as a single valid JSON object with exactly this schema:\n"
-                f"{{\n"
-                f'  "fit_score": X,\n'
-                f'  "allocation_advice": "allocation advice text",\n'
-                f'  "rationale": ["reason1", "reason2", "reason3"]\n'
-                f"}}\n"
-                f"Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
+                f"PORTFOLIO FIT TASK for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"Client Profile: Risk Tolerance = {risk_tolerance}, "
+                f"Investment Horizon = {horizon}, "
+                f"Portfolio Context = '{portfolio_context or 'Not provided'}'.\n"
+                f"You have access to all specialist findings: the risk_score from the Risk Agent, "
+                f"the recommendation from the Fundamental Agent, the signal from the Technical Agent, "
+                f"and the sentiment composite from the Sentiment Agent.\n\n"
+                f"MANDATORY DECISION STEPS:\n"
+                f"Step 1 (Risk Profile Match): Map the risk_score from the Risk Agent to the client's "
+                f"risk_tolerance of '{risk_tolerance}'. Is the asset's risk level BELOW, AT, or ABOVE "
+                f"the client's stated tolerance? This is the primary gating decision.\n"
+                f"Step 2 (Horizon Alignment): Is the investment thesis (from Fundamental Agent) "
+                f"achievable within the client's '{horizon}' horizon? Fundamental turnarounds take "
+                f"2-4 years, technical setups can play out in weeks to months.\n"
+                f"Step 3 (Position Sizing): Using the fixed-fractional method, calculate the "
+                f"suggested allocation % range: Low-risk stock → 5-10%, Medium-risk → 3-7%, "
+                f"High-risk → 1-3%. Adjust DOWN if the portfolio_context suggests existing "
+                f"concentration in the same sector.\n"
+                f"Step 4 (Concentration Check): Does adding {snapshot.symbol} to the client's "
+                f"existing portfolio (described in portfolio_context) create excessive sector or "
+                f"geographic concentration? Flag if post-addition sector exposure > 40%.\n"
+                f"Step 5 (Entry Strategy): Based on the technical agent's signal and the fundamental "
+                f"agent's recommendation, advise on HOW to enter: full position now, staged entry "
+                f"over 3 tranches, starter position with add-on confirmation, or avoid entirely.\n"
+                f"Step 6 (Rebalancing Trigger): Define the specific event or price level that should "
+                f"prompt the client to reassess or exit this position.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers."
             ),
-            expected_output="A single valid JSON object with keys: fit_score, allocation_advice, rationale",
+            expected_output=(
+                'A single valid JSON object: {"fit_score": 0-100, '
+                '"allocation_advice": "specific advice with percentage range", '
+                '"entry_strategy": "full_position|staged_3_tranches|starter_position|avoid", '
+                '"suggested_allocation_pct_range": "X%-Y%", '
+                '"horizon_alignment": "well_aligned|partially_aligned|misaligned", '
+                '"concentration_warning": true|false, '
+                '"concentration_note": "explanation or null", '
+                '"rebalancing_trigger": "specific trigger condition", '
+                '"rationale": ["reason1", "reason2", "reason3"]}'
+            ),
             agent=portfolio_agent,
             async_execution=False,
         )
         master_task = Task(
             description=(
-                f"{context}\n\nFinal Task: As Investment Committee Chair, you have received all specialist reports above. "
-                f"Synthesize them into a final verdict for {snapshot.symbol}. You MUST make a decisive final call. "
-                "Return ONLY valid JSON with no markdown wrappers. The JSON must exactly match this schema: "
-                '{"recommendation": "Buy|Hold|Sell", "target_bias": "String describing upside/downside", "summary": "1 paragraph executive summary", "thesis": ["point 1", "point 2", "point 3"], "action_items": ["action 1", "action 2", "action 3"]}'
+                f"{context}\n\n"
+                f"INVESTMENT COMMITTEE FINAL VERDICT for {snapshot.symbol} ({snapshot.company_name}):\n"
+                f"As Investment Committee Chair, you have just received five specialist reports: "
+                f"News, Fundamental, Technical, Sentiment, and Risk. Your job is to chair a "
+                f"virtual investment committee meeting and produce the final, binding verdict.\n\n"
+                f"DELIBERATION PROCESS — follow this exact sequence:\n\n"
+                f"PHASE 1 — IDENTIFY AGREEMENTS: What do the majority of agents agree on? "
+                f"If Fundamental says 'buy', Technical says 'buy', and Sentiment is 'bullish', "
+                f"the committee has a strong bull consensus. List the areas of agreement.\n\n"
+                f"PHASE 2 — IDENTIFY CONFLICTS: Where do agents disagree? "
+                f"E.g., Fundamental says 'buy' (undervalued) but Technical says 'wait' "
+                f"(downtrend, no reversal signal yet). Conflicts require explanation — WHY does "
+                f"the conflict exist and which agent's view should be given more weight? "
+                f"In general: Fundamental > Technical > Sentiment for long-term investments. "
+                f"Technical > Fundamental > Sentiment for short-term trades.\n\n"
+                f"PHASE 3 — RISK GATE: The Risk Agent's finding is a HARD GATE. If risk_score > 80, "
+                f"the committee CANNOT issue a 'Buy' recommendation regardless of what other agents say. "
+                f"Maximum you can issue is 'Hold' with strict position sizing caveats.\n\n"
+                f"PHASE 4 — FINAL VERDICT: After deliberation, issue your decisive committee verdict:\n"
+                f"  - 'Buy': Fundamental upside + Technical confirmation + Risk manageable (score < 70)"
+                f" + Sentiment not extreme-bearish\n"
+                f"  - 'Hold': Mixed signals, or thesis valid but entry timing poor, or risk elevated\n"
+                f"  - 'Sell': Fundamental deterioration OR technical breakdown + elevated risk score\n\n"
+                f"PHASE 5 — ACTION ITEMS: Provide 3 specific, time-bound action items the investor "
+                f"should take. NOT generic advice. Specific: 'Monitor Q2 earnings on [date]', "
+                f"'Set stop-loss at ₹X / $X', 'Re-evaluate if RSI drops below 30 on weekly chart'.\n\n"
+                f"Your executive summary must be exactly 3-4 sentences: one sentence on the "
+                f"fundamental picture, one on the technical setup, one on the key risk, and one "
+                f"final verdict sentence.\n\n"
+                f"Return ONLY valid raw JSON — no markdown wrappers. The JSON must exactly match:\n"
+                f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "String describing upside/downside bias", '
+                f'"summary": "3-4 sentence executive summary", '
+                f'"thesis": ["point 1", "point 2", "point 3"], '
+                f'"action_items": ["specific action 1", "specific action 2", "specific action 3"]}}'
             ),
-            expected_output="A raw, parsable JSON object with keys: recommendation, target_bias, summary, thesis, action_items.",
+            expected_output=(
+                "A raw, parsable JSON object with keys: recommendation (Buy|Hold|Sell), "
+                "target_bias (string), summary (3-4 sentence paragraph), "
+                "thesis (list of 3+ key investment points), "
+                "action_items (list of 3+ specific time-bound actions)."
+            ),
         )
 
         tasks = [news_task, fundamental_task, technical_task, sentiment_task, risk_task, portfolio_task, master_task]
