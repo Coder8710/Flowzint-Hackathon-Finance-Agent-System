@@ -579,7 +579,11 @@ async def search(q: str):
             for quote in quotes:
                 symbol = quote.get("symbol")
                 qtype = quote.get("quoteType")
-                if symbol and qtype in ACCEPTED_QTYPES:
+                longname = quote.get("longname", "") or ""
+                shortname = quote.get("shortname", "") or ""
+                
+                # Filter out derivative/warrant contracts that have '@' in the name
+                if symbol and qtype in ACCEPTED_QTYPES and "@" not in longname and "@" not in shortname:
                     raw_exch = (quote.get("exchange") or "").upper()
                     display_exch = EXCHANGE_MAP.get(raw_exch, raw_exch or "N/A")
                     results.append({
