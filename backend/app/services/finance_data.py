@@ -19,6 +19,7 @@ class MarketSnapshot:
     profit_margin: float | None
     debt_to_equity: float | None
     beta: float | None
+    currency: str
     history: list[dict[str, float | str]]
 
 
@@ -44,8 +45,26 @@ class FinanceDataService:
                 }
                 for index, row in history_frame.tail(120).iterrows()
             ]
-            price = float(info.get("currentPrice") or info.get("regularMarketPrice") or history[-1]["close"])
-            previous_close = float(info.get("previousClose") or history[-2]["close"])
+            price = None
+            if "currentPrice" in info and info["currentPrice"] is not None:
+                price = float(info["currentPrice"])
+            elif "regularMarketPrice" in info and info["regularMarketPrice"] is not None:
+                price = float(info["regularMarketPrice"])
+            elif history:
+                price = float(history[-1]["close"])
+            else:
+                price = 0.0
+
+            previous_close = None
+            if "previousClose" in info and info["previousClose"] is not None:
+                previous_close = float(info["previousClose"])
+            elif len(history) >= 2:
+                previous_close = float(history[-2]["close"])
+            elif history:
+                previous_close = float(history[-1]["close"])
+            else:
+                previous_close = price
+
             return MarketSnapshot(
                 symbol=symbol,
                 company_name=str(info.get("longName") or info.get("shortName") or symbol),
@@ -57,6 +76,7 @@ class FinanceDataService:
                 profit_margin=_to_float(info.get("profitMargins")),
                 debt_to_equity=_to_float(info.get("debtToEquity")),
                 beta=_to_float(info.get("beta")),
+                currency=str(info.get("currency") or "USD"),
                 history=history,
             )
         except Exception:
@@ -106,6 +126,7 @@ class FinanceDataService:
             profit_margin=round(rng.uniform(0.04, 0.34), 3),
             debt_to_equity=round(rng.uniform(8, 180), 2),
             beta=round(rng.uniform(0.75, 1.95), 2),
+            currency="INR" if symbol.endswith((".NS", ".BO")) else "USD",
             history=history,
         )
 

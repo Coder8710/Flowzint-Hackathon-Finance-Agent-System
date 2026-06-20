@@ -32,6 +32,7 @@ export type CompanyAnalysis = {
   action_items: string[];
   agents: AgentFinding[];
   news: NewsItem[];
+  currency?: string;
 };
 
 export type AnalysisResponse = {
@@ -40,4 +41,11 @@ export type AnalysisResponse = {
   summary: string;
   analyses: CompanyAnalysis[];
   disclaimer: string;
+};
+
+export type SearchSuggestion = {
+  symbol: string;
+  name: string;
+  exchange: string;
+  quoteType: string;
 };
