@@ -54,6 +54,8 @@ class FinanceCrew:
             os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key
         if self.settings.gemini_api_key:
             os.environ["GEMINI_API_KEY"] = self.settings.gemini_api_key
+        if self.settings.openrouter_api_key:
+            os.environ["OPENROUTER_API_KEY"] = self.settings.openrouter_api_key
         if self.settings.aws_access_key_id:
             os.environ["AWS_ACCESS_KEY_ID"] = self.settings.aws_access_key_id
         if self.settings.aws_secret_access_key:
@@ -404,23 +406,38 @@ class FinanceCrew:
                 f" + Sentiment not extreme-bearish\n"
                 f"  - 'Hold': Mixed signals, or thesis valid but entry timing poor, or risk elevated\n"
                 f"  - 'Sell': Fundamental deterioration OR technical breakdown + elevated risk score\n\n"
-                f"PHASE 5 — ACTION ITEMS: Provide 3 specific, time-bound action items the investor "
-                f"should take. NOT generic advice. Specific: 'Monitor Q2 earnings on [date]', "
-                f"'Set stop-loss at ₹X / $X', 'Re-evaluate if RSI drops below 30 on weekly chart'.\n\n"
-                f"Your executive summary must be exactly 3-4 sentences: one sentence on the "
-                f"fundamental picture, one on the technical setup, one on the key risk, and one "
-                f"final verdict sentence.\n\n"
-                f"Return ONLY valid raw JSON — no markdown wrappers. The JSON must exactly match:\n"
-                f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "String describing upside/downside bias", '
-                f'"summary": "3-4 sentence executive summary", '
-                f'"thesis": ["point 1", "point 2", "point 3"], '
-                f'"action_items": ["specific action 1", "specific action 2", "specific action 3"]}}'
+                f"PHASE 5 - INVESTMENT THESIS (minimum 6 points, each point MUST be at least 60 words):\n"
+                f"STRICT RULE: Any thesis point shorter than 50 words will be REJECTED. Write substantive paragraphs, not bullet points.\n"
+                f"Each point structure: [Opening claim with specific number/metric] + [Evidence from specialist reports] + [Forward-looking implication for investor].\n\n"
+                f"  Point 1 - Fundamental Value (min 50 words): State valuation (P/E or EV/EBITDA), compare to sector average, name 1 competitor for context, and cite the key re-rating catalyst from the Fundamental Agent.\n\n"
+                f"  Point 2 - Growth Catalyst (min 50 words): Identify the top growth driver for next 12-24 months. Quantify it with a specific number. State probability of materialising and impact on stock price if it does.\n\n"
+                f"  Point 3 - Technical Setup (min 50 words): State the RSI reading, MACD signal, ideal entry zone, hard stop-loss price, and 12-month price target. Explain WHY each level matters (moving average, prior support, Fibonacci).\n\n"
+                f"  Point 4 - Competitive Moat (min 50 words): Name 1-2 direct competitors and compare a key metric. Rate the moat as wide/narrow/none and justify with one specific structural advantage this company has over peers.\n\n"
+                f"  Point 5 - Risk vs Reward (min 50 words): State the bull case price target with % upside, the bear case stop-loss with % downside, and the reward-to-risk ratio. Recommend a position size % suited to this client's risk tolerance.\n\n"
+                f"  Point 6 - Macro Context (min 50 words): Name 1-2 specific macro variables (RBI/Fed rate cycle, currency, commodity) affecting this sector right now and explain precisely how each one impacts this company's earnings and stock price.\n\n"
+                f"PHASE 6 - NEXT ACTION ITEMS (5 specific, time-bound investor instructions):\n"
+                f"Each action MUST contain: exact verb + specific price level or metric + specific date or named event + one-sentence rationale.\n"
+                f"Generic actions like 'Monitor the stock' are not acceptable. Be precise enough that the investor can act immediately.\n\n"
+                f"Good example: 'Set a GTC limit buy at Rs 1840 (200-DMA support), to be reviewed on Q2FY25 earnings day (expected late October),"
+                f"because this level has held as demand zone three times in 18 months and a bounce here confirms the bull thesis.'\n\n"
+                f"  Action 1 - Entry or Add-On Trigger (specific price + date)\n"
+                f"  Action 2 - Stop-Loss Protocol (specific price + what event breaks the thesis)\n"
+                f"  Action 3 - Earnings or Catalyst Watch (event name + date + specific metric to monitor)\n"
+                f"  Action 4 - Profit-Taking Strategy (specific price target + percentage of position to trim)\n"
+                f"  Action 5 - Thesis Invalidation (specific metric or event that forces an immediate exit)\n\n"
+                f"Executive summary: 4-5 sentences covering fundamental picture, technical setup, key risk, and final verdict with conviction level (HIGH/MEDIUM/LOW).\n\n"
+                f"Return ONLY valid raw JSON - no markdown wrappers. The JSON must exactly match:\n"
+                f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "Bull case: Rs X (+Y%), Base case: Rs X, Bear case: Rs X (-Y%)", '
+                f'"summary": "4-5 sentence executive summary with conviction level HIGH/MEDIUM/LOW", '
+                f'"thesis": ["50+ word point 1", "50+ word point 2", "50+ word point 3", "50+ word point 4", "50+ word point 5", "50+ word point 6"], '
+                f'"action_items": ["specific action 1 with price+date", "specific action 2", "specific action 3", "specific action 4", "specific action 5"]}}'
             ),
             expected_output=(
                 "A raw, parsable JSON object with keys: recommendation (Buy|Hold|Sell), "
-                "target_bias (string), summary (3-4 sentence paragraph), "
-                "thesis (list of 3+ key investment points), "
-                "action_items (list of 3+ specific time-bound actions)."
+                "target_bias (bull/base/bear case price targets with specific % moves), "
+                "summary (3-4 sentence executive summary with specific metrics and conviction level HIGH/MEDIUM/LOW), "
+                "thesis (list of 6 investment points, each minimum 40 words with a specific metric and forward-looking implication), "
+                "action_items (list of 5 specific time-bound actions, each minimum 25 words, each with a price level or trigger condition)."
             ),
         )
 
@@ -551,3 +568,7 @@ def _string_list(value: Any) -> list[str]:
     if isinstance(value, str) and value.strip():
         return [value.strip()]
     return []
+
+
+
+
