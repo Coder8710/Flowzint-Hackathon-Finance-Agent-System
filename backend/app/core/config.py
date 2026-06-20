@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     tavily_api_key: str | None = None
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
+    openrouter_api_key: str | None = None
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
     aws_region_name: str | None = "us-east-1"
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     @property
     def has_llm_key(self) -> bool:
         """Check if at least one LLM API key is configured or default AWS credentials are used."""
-        if self.openai_api_key or self.gemini_api_key or (self.aws_access_key_id and self.aws_secret_access_key):
+        if self.openai_api_key or self.gemini_api_key or self.openrouter_api_key or (self.aws_access_key_id and self.aws_secret_access_key):
             return True
         if self.crewai_model.startswith("bedrock/"):
             # Check if standard AWS credentials exist in env or local AWS CLI profiles

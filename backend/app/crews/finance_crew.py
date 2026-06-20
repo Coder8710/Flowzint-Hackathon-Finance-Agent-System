@@ -54,6 +54,8 @@ class FinanceCrew:
             os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key
         if self.settings.gemini_api_key:
             os.environ["GEMINI_API_KEY"] = self.settings.gemini_api_key
+        if self.settings.openrouter_api_key:
+            os.environ["OPENROUTER_API_KEY"] = self.settings.openrouter_api_key
         if self.settings.aws_access_key_id:
             os.environ["AWS_ACCESS_KEY_ID"] = self.settings.aws_access_key_id
         if self.settings.aws_secret_access_key:
