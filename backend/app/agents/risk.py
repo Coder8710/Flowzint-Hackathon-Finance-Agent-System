@@ -1,5 +1,5 @@
-from statistics import mean, stdev
 import logging
+import math
 
 from app.models.analysis import AgentFinding
 from app.services.finance_data import MarketSnapshot
@@ -12,8 +12,8 @@ class RiskAnalysisAgent:
 
     async def run(self, snapshot: MarketSnapshot) -> AgentFinding:
         closes = [float(row["close"]) for row in snapshot.history if "close" in row]
-        returns = [(current - previous) / previous for previous, current in zip(closes, closes[1:]) if previous]
-        volatility = stdev(returns) * (252**0.5) if len(returns) > 2 else 0.25
+        returns = [float((current - previous) / previous) for previous, current in zip(closes, closes[1:]) if previous]
+        volatility = _stdev(returns) * (252**0.5) if len(returns) > 2 else 0.25
         drawdown = _max_drawdown(closes)
 
         risk = 35
@@ -47,7 +47,7 @@ class RiskAnalysisAgent:
             signals.append("Leverage adds balance-sheet risk.")
             risk += 8
 
-        avg_return = mean(returns) if returns else 0
+        avg_return = sum(returns) / len(returns) if returns else 0
         if avg_return < -0.002:
             risk += 6
             signals.append("Average daily return has recently skewed negative.")
@@ -61,6 +61,16 @@ class RiskAnalysisAgent:
             signals=signals,
             data={"score": 100 - risk, "risk_score": risk, "volatility": volatility, "max_drawdown": drawdown},
         )
+
+
+def _stdev(data: list[float]) -> float:
+    """Manual standard deviation to avoid Python 3.12 statistics.stdev incompatibility with numpy floats."""
+    n = len(data)
+    if n < 2:
+        return 0.0
+    mean_val = sum(data) / n
+    variance = sum((x - mean_val) ** 2 for x in data) / (n - 1)
+    return math.sqrt(variance)
 
 
 def _max_drawdown(values: list[float]) -> float:
