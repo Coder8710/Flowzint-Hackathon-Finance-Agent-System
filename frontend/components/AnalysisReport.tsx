@@ -379,14 +379,14 @@ export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
             {analysis.news.slice(0, 4).map((item, idx) => (
               <a
                 key={`${item.title}-${idx}`}
-                href={`https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
+                href={item.url && item.url.startsWith('http') ? item.url : `https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
               >
                 <div className="flex justify-between items-center gap-2 mb-1.5">
                   <span className="font-mono-data text-[10px] font-black uppercase text-mint tracking-wider bg-mint/5 px-2 py-0.5 rounded border border-mint/10 shrink-0">
-                    {item.source}
+                    {(item.source || "").replace(/tavily/gi, "").trim() || "News"}
                   </span>
                   {item.published_at && (
                     <span className="font-mono-data text-[10px] text-steel/50">

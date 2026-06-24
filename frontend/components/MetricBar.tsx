@@ -21,8 +21,9 @@ export function MetricBar({ label, value, tone = "info" }: MetricBarProps) {
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-terminalBg border border-line/60">
         <div
-          className={`h-full ${toneClasses[tone]} rounded-full animate-grow-width transition-all duration-1000`}
-          style={{ width: `${clamped}%` }}
+          key={clamped}
+          className={`h-full ${toneClasses[tone]} rounded-full transition-all duration-1000 ease-out`}
+          style={{ width: `${clamped}%`, minWidth: clamped > 0 ? "4px" : "0" }}
         />
       </div>
     </div>

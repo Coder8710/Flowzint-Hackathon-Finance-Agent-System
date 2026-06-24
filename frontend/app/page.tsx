@@ -70,12 +70,12 @@ const sampleQueries = [
 ];
 
 const agentSteps = [
-  { name: "News & Macro Specialist", icon: Newspaper, desc: "Scanning Tavily feeds and parsing RSS sentiment..." },
-  { name: "Fundamental Analysis Agent", icon: BarChart3, desc: "Modeling intrinsic DCF value and evaluating SEC data..." },
-  { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Calculating 14-day RSI, MACD trends, and volume profiles..." },
-  { name: "Sentiment Analysis Agent", icon: Brain, desc: "Gauging retail buzz, fear-greed proxies, and social bias..." },
-  { name: "Risk Analysis Agent", icon: Shield, desc: "Measuring asset beta, historical drawdown, and volatility risk..." },
-  { name: "Consensus Synthesis Coordinator", icon: Activity, desc: "Synthesizing consensus and creating action roadmap..." },
+  { name: "News & Market Specialist", icon: Newspaper, desc: "Scanning news feeds and analysing market headlines..." },
+  { name: "Fundamental Analysis Agent", icon: BarChart3, desc: "Evaluating company financials, valuation, and growth data..." },
+  { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Reviewing price trends, momentum, and chart patterns..." },
+  { name: "Sentiment Analysis Agent", icon: Brain, desc: "Measuring public mood, social buzz, and investor sentiment..." },
+  { name: "Risk Analysis Agent", icon: Shield, desc: "Assessing risk level, volatility, and potential downsides..." },
+  { name: "Final Verdict Coordinator", icon: Activity, desc: "Combining all findings into a clear investment recommendation..." },
 ];
 
 export default function Home() {
@@ -253,7 +253,7 @@ export default function Home() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-mint animate-pulse" />
-              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">Flowzint Finance AI</p>
+              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">StockSense AI</p>
             </div>
             <h1 className="break-words text-xl font-extrabold tracking-tight text-ink mt-0.5 font-sans">
               Your AI Investment Research Partner
@@ -276,7 +276,6 @@ export default function Home() {
             </button>
 
             <div className="flex h-9 items-center gap-2 border border-line bg-paper px-3.5 text-xs font-mono-data font-bold text-steel rounded-lg">
-              <span className="text-[10px] uppercase tracking-widest text-steel/50">Target Asset:</span>
               <span className="text-mint flex items-center gap-1.5 font-black">
                 <Zap className="h-3 w-3 fill-mint/20" />
                 {symbols}
@@ -294,7 +293,7 @@ export default function Home() {
           <form onSubmit={submit} className="rounded-2xl glass-panel p-6 shadow-panel border border-line space-y-5 animate-fade-in-up">
             <div className="flex items-center gap-2 mb-2 pb-3 border-b border-line">
               <SlidersHorizontal className="h-4 w-4 text-mint" aria-hidden />
-              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Master Control Deck</h2>
+              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Research Settings</h2>
             </div>
 
             {/* Autocomplete Company Search */}
@@ -367,21 +366,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Prompt input */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="query">
-                Stock Query Prompt
-              </label>
-              <div className="relative mt-2">
-                <textarea
-                  id="query"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="min-h-24 w-full resize-none border border-line bg-terminalBg/40 px-4 py-3 text-sm text-ink outline-none rounded-xl transition-all focus:border-mint focus:ring-1 focus:ring-mint/20 placeholder-steel/45"
-                  placeholder="e.g. Is Suzlon Energy a strong technical buy?"
-                />
-              </div>
-            </div>
+
 
             {/* Clickable Quick Pills */}
             <div className="flex flex-wrap gap-1.5">
@@ -464,7 +449,7 @@ export default function Home() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" aria-hidden />
-                  <span className="text-xs uppercase tracking-widest font-black">Run Consensus Synthesis</span>
+                  <span className="text-xs uppercase tracking-widest font-black">Analyze Now</span>
                 </>
               )}
             </button>
@@ -487,7 +472,7 @@ export default function Home() {
                 Orchestrating Sub-Agents
               </span>
               <h3 className="text-lg font-bold text-ink mb-6 text-center">
-                CrewAI Financial Intelligence Pipeline
+                AI Research Pipeline
               </h3>
               
               <div className="w-full max-w-md space-y-3">
@@ -527,7 +512,7 @@ export default function Home() {
                           )}
                         </div>
                         <p className={`text-xs mt-0.5 truncate leading-relaxed ${isActive ? "text-steel" : "text-steel/40"}`}>
-                          {isDone ? "Consensus completed." : isActive ? step.desc : "Awaiting activation..."}
+                          {isDone ? "Analysis complete." : isActive ? step.desc : "Waiting to start..."}
                         </p>
                       </div>
 
@@ -566,7 +551,7 @@ export default function Home() {
               <div className="border border-line bg-paper p-6 rounded-2xl relative overflow-hidden group">
                 <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 w-64 h-64 rounded-full bg-gradient-to-bl from-mint/10 to-transparent blur-3xl" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-mint bg-mint/5 px-2.5 py-0.5 rounded border border-mint/10 inline-block">
-                  Consensus Synthesis Verdict
+                  AI Research Verdict
                 </p>
                 <h3 className="mt-3 text-lg font-bold tracking-tight text-ink leading-relaxed">
                   {formatCurrencySymbols(result.summary, result.analyses[0]?.symbol, result.analyses[0]?.currency)}
