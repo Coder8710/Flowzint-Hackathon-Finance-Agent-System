@@ -76,7 +76,7 @@ class MasterAgent:
         recommendation = "Buy" if composite >= 64 and risk_score < 78 else "Sell" if composite <= 42 else "Hold"
         target_bias = _bias_from_score(composite)
         thesis = _top_thesis(agents)
-        action_items = _action_items(symbol, recommendation, risk_score)
+        action_items = _action_items(symbol, recommendation, risk_score, agents)
 
         try:
             crew_result = await asyncio.to_thread(
@@ -381,21 +381,58 @@ def _bias_from_score(score: float) -> str:
 def _top_thesis(agents: list) -> list[str]:
     thesis: list[str] = []
     for agent in agents:
-        thesis.extend(agent.signals[:2])
-    return thesis[:6]
+        # Include the agent summary which now contains computed metrics
+        if agent.summary:
+            thesis.append(f"{agent.agent.replace(' Agent', '')}: {agent.summary}")
+        # Include the most impactful signal
+        if agent.signals:
+            thesis.append(agent.signals[0])
+    
+    unique_thesis = []
+    for t in thesis:
+        if t not in unique_thesis:
+            unique_thesis.append(t)
+    return unique_thesis[:6]
 
 
-def _action_items(symbol: str, recommendation: str, risk_score: int) -> list[str]:
-    items = [f"Track upcoming earnings and guidance revisions for {symbol}."]
+def _action_items(symbol: str, recommendation: str, risk_score: int, agents: list) -> list[str]:
+    tech_data = next((a.data for a in agents if "Technical" in a.agent), {})
+    fund_data = next((a.data for a in agents if "Fundamental" in a.agent), {})
+    port_data = next((a.data for a in agents if "Portfolio" in a.agent), {})
+    
+    support = tech_data.get("key_support")
+    resistance = tech_data.get("key_resistance")
+    intrinsic = fund_data.get("intrinsic_value_estimate")
+    
+    items = []
+    
+    if support and resistance:
+        items.append(f"Monitor price action at key technical levels: Support at {support}, Resistance at {resistance}.")
+        
+    if intrinsic and intrinsic != "N/A":
+        items.append(f"Compare current market price against the fundamental intrinsic value estimate of {intrinsic}.")
+        
     if recommendation == "Buy":
-        items.append("Consider staged entries instead of a single full-position purchase.")
+        strategy = port_data.get('entry_strategy', 'staged_3_tranches').replace('_', ' ')
+        items.append(f"Implement a '{strategy}' entry plan as advised by the portfolio agent.")
     elif recommendation == "Sell":
-        items.append("Review whether downside catalysts outweigh your investment thesis.")
+        pe = fund_data.get('pe_ratio', 'current')
+        items.append(f"Review whether downside risk or overvaluation (P/E: {pe}) outweighs your investment thesis.")
     else:
-        items.append("Wait for clearer confirmation from price trend or fundamental catalysts.")
+        trend = tech_data.get('trend_direction', 'neutral')
+        items.append(f"Wait for clearer confirmation from price trend (currently {trend}) or fundamental catalysts.")
+        
     if risk_score > 65:
-        items.append("Use position sizing and stop-loss rules because volatility risk is elevated.")
-    return items
+        items.append(f"Use strict position sizing and set hard stop-losses because the risk score is elevated at {risk_score}/100.")
+        
+    trigger = port_data.get("rebalancing_trigger")
+    if trigger:
+        items.append(trigger)
+        
+    if len(items) < 5:
+        items.append(f"Track upcoming earnings and guidance revisions for {symbol} to confirm thesis.")
+        
+    return items[:5]
 
 
 def _build_overall_summary(analyses: list[CompanyAnalysis]) -> str:

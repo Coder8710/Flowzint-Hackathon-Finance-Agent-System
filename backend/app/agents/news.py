@@ -46,7 +46,14 @@ class NewsAgent:
             summary=f"Recent news flow appears {tone} based on {len(news)} headline(s).",
             confidence=0.62,
             signals=signals,
-            data={"score": score, "positive_hits": positive_hits, "negative_hits": negative_hits},
+            data={
+                "score": score, 
+                "positive_hits": positive_hits, 
+                "negative_hits": negative_hits,
+                "impact_direction": tone,
+                "catalyst_type": "earnings" if "earnings" in joined else "macro",
+                "sources": [item.source for item in news[:2]] if news else ["Web search"]
+            },
         )
 
 

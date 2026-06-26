@@ -165,6 +165,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
     }
 
     if (name.includes("Portfolio")) {
+      const rationale = Array.isArray(data.rationale) ? data.rationale : [];
       return (
         <div className="grid grid-cols-1 gap-3.5 mt-4">
           <div className="bg-paper/40 border border-line p-4 rounded-xl leading-relaxed">
@@ -173,6 +174,16 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
               {formatCurrencySymbols(String(data.allocation_advice || "No advice provided"), symbol, analysis.currency)}
             </p>
           </div>
+          {rationale.length > 0 && (
+            <div className="bg-paper/40 border border-line p-4 rounded-xl leading-relaxed">
+              <span className="text-[10px] font-black uppercase tracking-wider text-steel">Rationale</span>
+              <ul className="text-xs font-semibold text-ink mt-1 list-disc pl-4 space-y-1">
+                {rationale.map((r, i) => (
+                  <li key={i}>{formatCurrencySymbols(String(r), symbol, analysis.currency)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       );
     }
