@@ -25,12 +25,13 @@ const agentIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   "Portfolio Advisor Agent": HelpCircle,
 };
 
-export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
+export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: CompanyAnalysis; overrideCompanyName?: string }) {
   const [activeAgentIndex, setActiveAgentIndex] = useState<number>(0);
   const technical = analysis.agents.find((agent) => agent.agent === "Technical Analysis Agent");
   
   const symbol = analysis.symbol;
   const rec = analysis.recommendation;
+  const displayName = overrideCompanyName || analysis.company_name;
   
   // Custom theme colors for recommendation banner
   const recColors = 
@@ -201,7 +202,7 @@ export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
                   {symbol.split(".")[0]}
                 </span>
                 <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink break-words">
-                  {analysis.company_name}
+                  {displayName}
                 </h2>
               </div>
               <span className={`shrink-0 border px-3.5 py-1.5 text-sm font-black rounded-lg uppercase tracking-wider ${recColors}`}>

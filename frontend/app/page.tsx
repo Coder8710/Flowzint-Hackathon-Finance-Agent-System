@@ -5,6 +5,7 @@ import {
   Activity, 
   BarChart3, 
   Brain, 
+  Briefcase,
   Loader2, 
   Newspaper, 
   Search, 
@@ -15,7 +16,8 @@ import {
   Sparkles,
   Sun,
   Moon,
-  HelpCircle
+  HelpCircle,
+  X
 } from "lucide-react";
 import { analyzeStock } from "@/lib/api";
 import { AnalysisResponse } from "@/lib/types";
@@ -75,6 +77,7 @@ const agentSteps = [
   { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Reviewing price trends, momentum, and chart patterns..." },
   { name: "Sentiment Analysis Agent", icon: Brain, desc: "Measuring public mood, social buzz, and investor sentiment..." },
   { name: "Risk Analysis Agent", icon: Shield, desc: "Assessing risk level, volatility, and potential downsides..." },
+  { name: "Portfolio Advisor", icon: Briefcase, desc: "Reviewing how this fits your portfolio and investment goals..." },
   { name: "Final Verdict Coordinator", icon: Activity, desc: "Combining all findings into a clear investment recommendation..." },
 ];
 
@@ -94,6 +97,7 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [selectedCompany, setSelectedCompany] = useState<{ name: string; symbol: string; exchange: string } | null>(null);
 
   const symbols = useMemo(() => {
     if (!result) return "IDLE";
@@ -168,6 +172,7 @@ export default function Home() {
     setSuggestions([]);
     setSearchOpen(false);
     setActiveIndex(-1);
+    setSelectedCompany({ name: suggestion.name, symbol: suggestion.symbol.split(".")[0], exchange: suggestion.exchange });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -306,7 +311,7 @@ export default function Home() {
                   id="company-search"
                   type="text"
                   value={searchVal}
-                  onChange={(event) => { setSearchVal(event.target.value); setSearchOpen(true); }}
+                  onChange={(event) => { setSearchVal(event.target.value); setSearchOpen(true); if (event.target.value.trim()) setSelectedCompany(null); }}
                   onFocus={() => { if (searchVal.trim().length > 0) setSearchOpen(true); }}
                   onKeyDown={handleKeyDown}
                   className="h-10 w-full border border-line bg-terminalBg/40 pl-9 pr-10 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint placeholder-steel/45"
@@ -318,6 +323,29 @@ export default function Home() {
                   <Loader2 className="absolute right-3 h-3.5 w-3.5 animate-spin text-mint" />
                 )}
               </div>
+
+              {/* Selected company chip */}
+              {selectedCompany && (
+                <div className="mt-2 flex items-center gap-2 animate-fade-in">
+                  <div className="flex items-center gap-2 bg-mint/8 border border-mint/20 rounded-lg px-3 py-2 flex-1 min-w-0">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-mint/15 border border-mint/25">
+                      <span className="text-[9px] font-black font-mono-data text-mint">{selectedCompany.symbol.slice(0, 3)}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-ink truncate">{selectedCompany.name}</p>
+                      <p className="text-[10px] font-mono-data text-steel/60">{selectedCompany.symbol} · {selectedCompany.exchange}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCompany(null); setQuery(""); }}
+                    className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-line text-steel/50 hover:border-berry/40 hover:text-berry transition-colors"
+                    title="Clear selection"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
 
               {/* Suggestions Dropdown — positioned relative to outer wrapper */}
               {searchOpen && searchVal.trim().length > 0 && (
@@ -564,7 +592,15 @@ export default function Home() {
               {/* Individual Reports render */}
               <div className="space-y-6">
                 {result.analyses.map((analysis) => (
-                  <AnalysisReport key={analysis.symbol} analysis={analysis} />
+                  <AnalysisReport
+                    key={analysis.symbol}
+                    analysis={analysis}
+                    overrideCompanyName={
+                      selectedCompany && selectedCompany.symbol === analysis.symbol.split(".")[0]
+                        ? selectedCompany.name
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             </div>
