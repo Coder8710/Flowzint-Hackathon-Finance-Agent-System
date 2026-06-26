@@ -33,7 +33,12 @@ class MasterAgent:
         self.finance_crew = FinanceCrew()
 
     async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
-        symbols = await _extract_symbols(request.query)
+        # Fast path: frontend sent a pre-resolved ticker — skip query parsing entirely
+        if request.symbol:
+            symbols = [request.symbol]
+        else:
+            symbols = await _extract_symbols(request.query)
+
         analyses = await asyncio.gather(*(self._analyze_symbol(symbol, request) for symbol in symbols))
         return AnalysisResponse(
             query=request.query,
@@ -45,6 +50,7 @@ class MasterAgent:
                 "Validate data and consult a licensed advisor before investing."
             ),
         )
+
 
     async def _analyze_symbol(self, symbol: str, request: AnalysisRequest) -> CompanyAnalysis:
         snapshot = await self.finance.get_snapshot(symbol)

@@ -1,5 +1,7 @@
 export type AnalysisRequest = {
   query: string;
+  symbol?: string;
+  company_name?: string;
   risk_tolerance: "low" | "medium" | "high";
   horizon: "short" | "medium" | "long";
   portfolio_context?: string;

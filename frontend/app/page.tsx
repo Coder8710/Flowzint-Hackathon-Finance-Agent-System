@@ -97,7 +97,7 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [selectedCompany, setSelectedCompany] = useState<{ name: string; symbol: string; exchange: string } | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<{ name: string; symbol: string; fullSymbol: string; exchange: string } | null>(null);
 
   const symbols = useMemo(() => {
     if (!result) return "IDLE";
@@ -167,12 +167,18 @@ export default function Home() {
   }, [searchVal]);
 
   const selectSuggestion = (suggestion: any) => {
-    setQuery(`Analyze ${suggestion.symbol} (${suggestion.name})`);
+    setQuery(`Analyze ${suggestion.name}`);
     setSearchVal("");
     setSuggestions([]);
     setSearchOpen(false);
     setActiveIndex(-1);
-    setSelectedCompany({ name: suggestion.name, symbol: suggestion.symbol.split(".")[0], exchange: suggestion.exchange });
+    // Store both the display symbol (stripped) and full ticker (with .NS etc.) for backend
+    setSelectedCompany({
+      name: suggestion.name,
+      symbol: suggestion.symbol.split(".")[0],
+      fullSymbol: suggestion.symbol,  // full ticker e.g. APOLLOHOSP.NS
+      exchange: suggestion.exchange,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -238,6 +244,11 @@ export default function Home() {
     try {
       const response = await analyzeStock({
         query,
+        // If user selected from search dropdown, send the pre-resolved ticker directly
+        ...(selectedCompany && {
+          symbol: selectedCompany.fullSymbol,
+          company_name: selectedCompany.name,
+        }),
         risk_tolerance: riskTolerance,
         horizon,
         portfolio_context: portfolioContext || undefined
@@ -249,6 +260,7 @@ export default function Home() {
       setLoading(false);
     }
   }
+
 
   return (
     <main className="min-h-screen pb-12 transition-colors duration-200">
