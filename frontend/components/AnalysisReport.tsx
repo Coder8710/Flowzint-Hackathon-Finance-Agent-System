@@ -25,13 +25,12 @@ const agentIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   "Portfolio Advisor Agent": HelpCircle,
 };
 
-export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: CompanyAnalysis; overrideCompanyName?: string }) {
+export function AnalysisReport({ analysis }: { analysis: CompanyAnalysis }) {
   const [activeAgentIndex, setActiveAgentIndex] = useState<number>(0);
   const technical = analysis.agents.find((agent) => agent.agent === "Technical Analysis Agent");
   
   const symbol = analysis.symbol;
   const rec = analysis.recommendation;
-  const displayName = overrideCompanyName || analysis.company_name;
   
   // Custom theme colors for recommendation banner
   const recColors = 
@@ -165,7 +164,6 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
     }
 
     if (name.includes("Portfolio")) {
-      const rationale = Array.isArray(data.rationale) ? data.rationale : [];
       return (
         <div className="grid grid-cols-1 gap-3.5 mt-4">
           <div className="bg-paper/40 border border-line p-4 rounded-xl leading-relaxed">
@@ -174,16 +172,6 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
               {formatCurrencySymbols(String(data.allocation_advice || "No advice provided"), symbol, analysis.currency)}
             </p>
           </div>
-          {rationale.length > 0 && (
-            <div className="bg-paper/40 border border-line p-4 rounded-xl leading-relaxed">
-              <span className="text-[10px] font-black uppercase tracking-wider text-steel">Rationale</span>
-              <ul className="text-xs font-semibold text-ink mt-1 list-disc pl-4 space-y-1">
-                {rationale.map((r, i) => (
-                  <li key={i}>{formatCurrencySymbols(String(r), symbol, analysis.currency)}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       );
     }
@@ -213,7 +201,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                   {symbol.split(".")[0]}
                 </span>
                 <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink break-words">
-                  {displayName}
+                  {analysis.company_name}
                 </h2>
               </div>
               <span className={`shrink-0 border px-3.5 py-1.5 text-sm font-black rounded-lg uppercase tracking-wider ${recColors}`}>
@@ -391,14 +379,14 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
             {analysis.news.slice(0, 4).map((item, idx) => (
               <a
                 key={`${item.title}-${idx}`}
-                href={item.url && item.url.startsWith('http') ? item.url : `https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
+                href={`https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
               >
                 <div className="flex justify-between items-center gap-2 mb-1.5">
                   <span className="font-mono-data text-[10px] font-black uppercase text-mint tracking-wider bg-mint/5 px-2 py-0.5 rounded border border-mint/10 shrink-0">
-                    {(item.source || "").replace(/tavily/gi, "").trim() || "News"}
+                    {item.source}
                   </span>
                   {item.published_at && (
                     <span className="font-mono-data text-[10px] text-steel/50">

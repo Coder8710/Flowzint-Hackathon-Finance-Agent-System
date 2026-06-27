@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     app_name: str = "Flowzint Finance AI"
     environment: str = "development"
     cors_origins: str = Field(
-        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002",
+        default="http://localhost:3000,http://127.0.0.1:3000",
         description="Comma-separated list of allowed frontend origins.",
     )
     tavily_api_key: str | None = None
