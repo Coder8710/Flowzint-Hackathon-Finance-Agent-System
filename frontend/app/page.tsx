@@ -5,6 +5,7 @@ import {
   Activity, 
   BarChart3, 
   Brain, 
+  Briefcase,
   Loader2, 
   Newspaper, 
   Search, 
@@ -15,7 +16,8 @@ import {
   Sparkles,
   Sun,
   Moon,
-  HelpCircle
+  HelpCircle,
+  X
 } from "lucide-react";
 import { analyzeStock } from "@/lib/api";
 import { AnalysisResponse } from "@/lib/types";
@@ -63,19 +65,24 @@ function HighlightedText({ text, highlight }: { text: string; highlight: string 
 }
 
 
-const sampleQueries = [
-  "Analyze NVIDIA stock", 
-  "Is Suzlon Energy a good buy?", 
-  "Compare Apple vs Microsoft"
+// Quick-pick company reference chips shown below the search bar
+const quickCompanies = [
+  { name: "NVIDIA",   symbol: "NVDA",  exchange: "NASDAQ" },
+  { name: "Apple",    symbol: "AAPL",  exchange: "NASDAQ" },
+  { name: "Microsoft",symbol: "MSFT",  exchange: "NASDAQ" },
+  { name: "Google",   symbol: "GOOG",  exchange: "NASDAQ" },
+  { name: "Tesla",    symbol: "TSLA",  exchange: "NASDAQ" },
+  { name: "Reliance", symbol: "RELIANCE", exchange: "NSE" },
 ];
 
 const agentSteps = [
-  { name: "News & Macro Specialist", icon: Newspaper, desc: "Scanning Tavily feeds and parsing RSS sentiment..." },
-  { name: "Fundamental Analysis Agent", icon: BarChart3, desc: "Modeling intrinsic DCF value and evaluating SEC data..." },
-  { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Calculating 14-day RSI, MACD trends, and volume profiles..." },
-  { name: "Sentiment Analysis Agent", icon: Brain, desc: "Gauging retail buzz, fear-greed proxies, and social bias..." },
-  { name: "Risk Analysis Agent", icon: Shield, desc: "Measuring asset beta, historical drawdown, and volatility risk..." },
-  { name: "Consensus Synthesis Coordinator", icon: Activity, desc: "Synthesizing consensus and creating action roadmap..." },
+  { name: "News & Market Specialist", icon: Newspaper, desc: "Scanning news feeds and analysing market headlines..." },
+  { name: "Fundamental Analysis Agent", icon: BarChart3, desc: "Evaluating company financials, valuation, and growth data..." },
+  { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Reviewing price trends, momentum, and chart patterns..." },
+  { name: "Sentiment Analysis Agent", icon: Brain, desc: "Measuring public mood, social buzz, and investor sentiment..." },
+  { name: "Risk Analysis Agent", icon: Shield, desc: "Assessing risk level, volatility, and potential downsides..." },
+  { name: "Portfolio Advisor", icon: Briefcase, desc: "Reviewing how this fits your portfolio and investment goals..." },
+  { name: "Final Verdict Coordinator", icon: Activity, desc: "Combining all findings into a clear investment recommendation..." },
 ];
 
 export default function Home() {
@@ -84,6 +91,7 @@ export default function Home() {
   const [horizon, setHorizon] = useState<"short" | "medium" | "long">("medium");
   const [portfolioContext, setPortfolioContext] = useState("");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
+  const [pendingResult, setPendingResult] = useState<AnalysisResponse | null>(null); // holds result until pipeline animation finishes
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAgent, setActiveAgent] = useState(0);
@@ -94,11 +102,19 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [selectedCompany, setSelectedCompany] = useState<{ name: string; symbol: string; fullSymbol: string; exchange: string } | null>(null);
 
   const symbols = useMemo(() => {
     if (!result) return "IDLE";
     return result.symbols.map(s => s.split(".")[0]).join(" / ");
   }, [result]);
+
+  // Display label for header badge: prefer company name over raw ticker
+  const headerLabel = useMemo(() => {
+    if (!result) return "IDLE";
+    if (selectedCompany) return selectedCompany.name;
+    return result.analyses[0]?.company_name || symbols;
+  }, [result, selectedCompany, symbols]);
 
   // Click outside to close autocomplete
   useEffect(() => {
@@ -163,11 +179,18 @@ export default function Home() {
   }, [searchVal]);
 
   const selectSuggestion = (suggestion: any) => {
-    setQuery(`Analyze ${suggestion.symbol} (${suggestion.name})`);
+    setQuery(`Analyze ${suggestion.name}`);
     setSearchVal("");
     setSuggestions([]);
     setSearchOpen(false);
     setActiveIndex(-1);
+    // Store both the display symbol (stripped) and full ticker (with .NS etc.) for backend
+    setSelectedCompany({
+      name: suggestion.name,
+      symbol: suggestion.symbol.split(".")[0],
+      fullSymbol: suggestion.symbol,  // full ticker e.g. APOLLOHOSP.NS
+      exchange: suggestion.exchange,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -213,37 +236,65 @@ export default function Home() {
     }
   };
 
-  // Simulate agent progress during loading to show active pipelines
+  // Simulate agent progress during loading — keep cycling until all 7 agents are shown
   useEffect(() => {
     if (!loading) {
-      setActiveAgent(0);
       return;
     }
+    setActiveAgent(0);
     const interval = setInterval(() => {
-      setActiveAgent((prev) => (prev < agentSteps.length - 1 ? prev + 1 : prev));
-    }, 4500); // 4.5s per agent phase
+      setActiveAgent((prev) => {
+        if (prev < agentSteps.length - 1) return prev + 1;
+        // All agents done — if we have a pending result waiting, flush it now
+        return prev;
+      });
+    }, 3000); // 3s per agent — 7 agents = 21s coverage
     return () => clearInterval(interval);
   }, [loading]);
+
+  // When the pipeline reaches the last agent AND we have a pending result, show it
+  useEffect(() => {
+    if (activeAgent >= agentSteps.length - 1 && pendingResult) {
+      // Small delay so user sees the final agent complete before results appear
+      const t = setTimeout(() => {
+        setResult(pendingResult);
+        setPendingResult(null);
+        setLoading(false);
+        setSearchLoading(false);
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [activeAgent, pendingResult]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setResult(null);
+    setPendingResult(null);
     setActiveAgent(0);
+    setSearchLoading(false);
     try {
       const response = await analyzeStock({
         query,
+        ...(selectedCompany && {
+          symbol: selectedCompany.fullSymbol,
+          company_name: selectedCompany.name,
+        }),
         risk_tolerance: riskTolerance,
         horizon,
         portfolio_context: portfolioContext || undefined
       });
-      setResult(response);
+      // Buffer the result — the pipeline useEffect will flush it when all agents are shown
+      setPendingResult(response);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to run agent pipeline analysis.");
-    } finally {
       setLoading(false);
+      setSearchLoading(false);
     }
+    // NOTE: setLoading(false) is intentionally NOT in finally — it's handled by the pipeline effect
   }
+
 
   return (
     <main className="min-h-screen pb-12 transition-colors duration-200">
@@ -252,8 +303,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-mint animate-pulse" />
-              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">Flowzint Finance AI</p>
+              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">Stockmaster.ai</p>
             </div>
             <h1 className="break-words text-xl font-extrabold tracking-tight text-ink mt-0.5 font-sans">
               Your AI Investment Research Partner
@@ -275,12 +325,8 @@ export default function Home() {
               )}
             </button>
 
-            <div className="flex h-9 items-center gap-2 border border-line bg-paper px-3.5 text-xs font-mono-data font-bold text-steel rounded-lg">
-              <span className="text-[10px] uppercase tracking-widest text-steel/50">Target Asset:</span>
-              <span className="text-mint flex items-center gap-1.5 font-black">
-                <Zap className="h-3 w-3 fill-mint/20" />
-                {symbols}
-              </span>
+            <div className="flex h-9 items-center border border-line bg-paper px-3.5 text-xs font-bold text-steel rounded-lg max-w-[220px]">
+              <span className="text-mint font-black min-w-0 truncate">{headerLabel}</span>
             </div>
           </div>
         </div>
@@ -294,7 +340,7 @@ export default function Home() {
           <form onSubmit={submit} className="rounded-2xl glass-panel p-6 shadow-panel border border-line space-y-5 animate-fade-in-up">
             <div className="flex items-center gap-2 mb-2 pb-3 border-b border-line">
               <SlidersHorizontal className="h-4 w-4 text-mint" aria-hidden />
-              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Master Control Deck</h2>
+              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Research Settings</h2>
             </div>
 
             {/* Autocomplete Company Search */}
@@ -307,7 +353,7 @@ export default function Home() {
                   id="company-search"
                   type="text"
                   value={searchVal}
-                  onChange={(event) => { setSearchVal(event.target.value); setSearchOpen(true); }}
+                  onChange={(event) => { setSearchVal(event.target.value); setSearchOpen(true); if (event.target.value.trim()) setSelectedCompany(null); }}
                   onFocus={() => { if (searchVal.trim().length > 0) setSearchOpen(true); }}
                   onKeyDown={handleKeyDown}
                   className="h-10 w-full border border-line bg-terminalBg/40 pl-9 pr-10 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint placeholder-steel/45"
@@ -320,9 +366,32 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Suggestions Dropdown — positioned relative to outer wrapper */}
+              {/* Selected company chip */}
+              {selectedCompany && (
+                <div className="mt-2 flex items-center gap-2 animate-fade-in">
+                  <div className="flex items-center gap-2 bg-mint/8 border border-mint/20 rounded-lg px-3 py-2 flex-1 min-w-0">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-mint/15 border border-mint/25">
+                      <span className="text-[9px] font-black font-mono-data text-mint">{selectedCompany.symbol.slice(0, 3)}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-ink truncate">{selectedCompany.name}</p>
+                      <p className="text-[10px] font-mono-data text-steel/60">{selectedCompany.symbol} · {selectedCompany.exchange}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCompany(null); setQuery(""); }}
+                    className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-line text-steel/50 hover:border-berry/40 hover:text-berry transition-colors"
+                    title="Clear selection"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+
+              {/* Suggestions Dropdown — theme-aware colors for light/dark mode */}
               {searchOpen && searchVal.trim().length > 0 && (
-                <div className="absolute left-0 right-0 z-[9999] mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-slate-950/95 backdrop-blur-md p-1 shadow-2xl animate-fade-in divide-y divide-line/20">
+                <div className="absolute left-0 right-0 z-[9999] mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-paper backdrop-blur-md p-1 shadow-2xl animate-fade-in divide-y divide-line/20">
                   {suggestions.length > 0 ? (
                     suggestions.map((suggestion, index) => (
                       <button
@@ -351,7 +420,7 @@ export default function Home() {
                         <span className={`shrink-0 font-mono-data font-black text-[9px] uppercase tracking-widest border px-1.5 py-0.5 rounded ${
                           index === activeIndex
                             ? "bg-mint/20 border-mint/30 text-mint"
-                            : "bg-paper border-line text-steel/70"
+                            : "bg-line/20 border-line text-steel/70"
                         }`}>
                           {suggestion.exchange}
                         </span>
@@ -367,38 +436,33 @@ export default function Home() {
               )}
             </div>
 
-            {/* Prompt input */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="query">
-                Stock Query Prompt
-              </label>
-              <div className="relative mt-2">
-                <textarea
-                  id="query"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="min-h-24 w-full resize-none border border-line bg-terminalBg/40 px-4 py-3 text-sm text-ink outline-none rounded-xl transition-all focus:border-mint focus:ring-1 focus:ring-mint/20 placeholder-steel/45"
-                  placeholder="e.g. Is Suzlon Energy a strong technical buy?"
-                />
-              </div>
-            </div>
 
-            {/* Clickable Quick Pills */}
-            <div className="flex flex-wrap gap-1.5">
-              {sampleQueries.map((sample) => (
-                <button
-                  key={sample}
-                  type="button"
-                  onClick={() => setQuery(sample)}
-                  className={`border px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                    query === sample
-                      ? "border-mint bg-mint/5 text-mint"
-                      : "border-line bg-paper/30 hover:border-mint hover:bg-mint/5 text-steel"
-                  }`}
-                >
-                  {sample}
-                </button>
-              ))}
+
+            {/* Quick Company Reference Chips */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-steel/50 mb-2">Quick Select</p>
+              <div className="flex flex-wrap gap-1.5">
+                {quickCompanies.map((co) => (
+                  <button
+                    key={co.symbol}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const fakeSuggestion = { name: co.name, symbol: co.symbol, exchange: co.exchange };
+                      selectSuggestion(fakeSuggestion);
+                    }}
+                    className={`flex items-center gap-1.5 border px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                      selectedCompany?.symbol === co.symbol
+                        ? "border-mint bg-mint/10 text-mint"
+                        : "border-line bg-paper/30 hover:border-mint hover:bg-mint/5 text-steel hover:text-mint"
+                    }`}
+                  >
+                    <span className="font-mono-data font-black text-[10px]">{co.symbol}</span>
+                    <span className="text-steel/50 font-normal hidden sm:inline">·</span>
+                    <span className="hidden sm:inline">{co.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Parameters Row */}
@@ -464,7 +528,7 @@ export default function Home() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" aria-hidden />
-                  <span className="text-xs uppercase tracking-widest font-black">Run Consensus Synthesis</span>
+                  <span className="text-xs uppercase tracking-widest font-black">Analyze Now</span>
                 </>
               )}
             </button>
@@ -487,7 +551,7 @@ export default function Home() {
                 Orchestrating Sub-Agents
               </span>
               <h3 className="text-lg font-bold text-ink mb-6 text-center">
-                CrewAI Financial Intelligence Pipeline
+                AI Research Pipeline
               </h3>
               
               <div className="w-full max-w-md space-y-3">
@@ -527,7 +591,7 @@ export default function Home() {
                           )}
                         </div>
                         <p className={`text-xs mt-0.5 truncate leading-relaxed ${isActive ? "text-steel" : "text-steel/40"}`}>
-                          {isDone ? "Consensus completed." : isActive ? step.desc : "Awaiting activation..."}
+                          {isDone ? "Analysis complete." : isActive ? step.desc : "Waiting to start..."}
                         </p>
                       </div>
 
@@ -566,10 +630,21 @@ export default function Home() {
               <div className="border border-line bg-paper p-6 rounded-2xl relative overflow-hidden group">
                 <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 w-64 h-64 rounded-full bg-gradient-to-bl from-mint/10 to-transparent blur-3xl" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-mint bg-mint/5 px-2.5 py-0.5 rounded border border-mint/10 inline-block">
-                  Consensus Synthesis Verdict
+                  Stockmaster.ai Research Verdict
                 </p>
                 <h3 className="mt-3 text-lg font-bold tracking-tight text-ink leading-relaxed">
-                  {formatCurrencySymbols(result.summary, result.analyses[0]?.symbol, result.analyses[0]?.currency)}
+                  {(() => {
+                    let text = formatCurrencySymbols(result.summary, result.analyses[0]?.symbol, result.analyses[0]?.currency);
+                    // Replace raw ticker mentions with full company name for readability
+                    if (selectedCompany) {
+                      const ticker = selectedCompany.symbol;
+                      text = text.replace(new RegExp(`\\b${ticker}\\b`, "gi"), selectedCompany.name);
+                    } else if (result.analyses[0]?.company_name && result.analyses[0]?.symbol) {
+                      const ticker = result.analyses[0].symbol.split(".")[0];
+                      text = text.replace(new RegExp(`\\b${ticker}\\b`, "gi"), result.analyses[0].company_name);
+                    }
+                    return text;
+                  })()}
                 </h3>
                 <p className="mt-4 text-[11px] font-medium text-steel/60 leading-relaxed border-t border-line pt-3">
                   Disclaimer: {result.disclaimer}
@@ -579,7 +654,15 @@ export default function Home() {
               {/* Individual Reports render */}
               <div className="space-y-6">
                 {result.analyses.map((analysis) => (
-                  <AnalysisReport key={analysis.symbol} analysis={analysis} />
+                  <AnalysisReport
+                    key={analysis.symbol}
+                    analysis={analysis}
+                    overrideCompanyName={
+                      selectedCompany && selectedCompany.symbol === analysis.symbol.split(".")[0]
+                        ? selectedCompany.name
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             </div>

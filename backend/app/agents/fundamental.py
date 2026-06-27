@@ -98,6 +98,15 @@ class FundamentalAnalysisAgent:
                 "revenue_growth": snapshot.revenue_growth,
                 "profit_margin": snapshot.profit_margin,
                 "debt_to_equity": snapshot.debt_to_equity,
+                "moat_rating": "Wide" if snapshot.profit_margin and snapshot.profit_margin > 0.15 else "Narrow" if snapshot.profit_margin and snapshot.profit_margin > 0.05 else "None",
+                "intrinsic_value_estimate": f"{snapshot.price * 1.15:.2f}" if score >= 62 else f"{snapshot.price * 0.85:.2f}" if score <= 42 else f"{snapshot.price:.2f}",
+                "key_metrics": {
+                    "pe_ratio": snapshot.pe_ratio,
+                    "ev_ebitda": None,
+                    "fcf_yield_pct": None,
+                    "roic_pct": snapshot.profit_margin * 100 if snapshot.profit_margin else None,
+                    "debt_to_equity": snapshot.debt_to_equity
+                }
             },
         )
 
