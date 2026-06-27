@@ -391,7 +391,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
             {analysis.news.slice(0, 4).map((item, idx) => (
               <a
                 key={`${item.title}-${idx}`}
-                href={item.url && item.url.startsWith('http') ? item.url : `https://news.google.com/search?q=${encodeURIComponent(item.title + " " + symbol.split(".")[0])}`}
+                href={item.url && !item.url.includes("news.google.com") ? item.url : "#"}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
