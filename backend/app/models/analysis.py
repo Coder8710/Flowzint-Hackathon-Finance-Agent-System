@@ -7,22 +7,13 @@ Recommendation = Literal["Buy", "Hold", "Sell"]
 
 
 class AnalysisRequest(BaseModel):
-    query: str = Field(..., min_length=1, examples=["Analyze NVIDIA stock"])
-    symbol: str | None = Field(
-        default=None,
-        description="Pre-resolved stock ticker (e.g. APOLLOHOSP.NS). If provided, skips query parsing.",
-    )
-    company_name: str | None = Field(
-        default=None,
-        description="Company display name corresponding to the pre-resolved symbol.",
-    )
+    query: str = Field(..., min_length=2, examples=["Analyze NVIDIA stock"])
     risk_tolerance: Literal["low", "medium", "high"] = "medium"
     horizon: Literal["short", "medium", "long"] = "medium"
     portfolio_context: str | None = Field(
         default=None,
         description="Optional user portfolio notes used by the portfolio advisor agent.",
     )
-
 
 
 class NewsItem(BaseModel):

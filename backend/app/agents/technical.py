@@ -73,9 +73,6 @@ class TechnicalAnalysisAgent:
 
         score = max(0, min(100, score))
         stance = "bullish" if score >= 62 else "bearish" if score <= 42 else "neutral"
-        trend = "uptrend" if closes[-1] > sma_20 > sma_50 else "downtrend" if closes[-1] < sma_20 < sma_50 else "sideways"
-        signal_action = "buy" if stance == "bullish" else "sell" if stance == "bearish" else "wait"
-
         return AgentFinding(
             agent=self.name,
             summary=f"Technical setup is {stance} with a score of {score}/100.",
@@ -83,14 +80,12 @@ class TechnicalAnalysisAgent:
             signals=signals,
             data={
                 "score": score,
-                "rsi_reading": round(rsi, 2),
-                "trend_direction": trend,
-                "signal": signal_action,
+                "rsi": round(rsi, 2),
                 "sma_20": round(sma_20, 2),
                 "sma_50": round(sma_50, 2),
                 "momentum_1m": round(momentum, 4),
-                "key_support": round(support, 2),
-                "key_resistance": round(resistance, 2),
+                "support": round(support, 2),
+                "resistance": round(resistance, 2),
                 "history": snapshot.history[-60:],
             },
         )

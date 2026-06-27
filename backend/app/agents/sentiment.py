@@ -33,10 +33,6 @@ class SentimentAnalysisAgent:
         score = max(0, min(100, 50 + raw * 7))
         mood = "bullish" if score >= 61 else "bearish" if score <= 39 else "neutral"
 
-        fear_greed = "greed" if score >= 65 else "fear" if score <= 35 else "neutral"
-        buzz = "high" if (bullish_count + bearish_count) > 10 else "medium"
-        bias = "retail_long" if mood == "bullish" else "institutional_short" if mood == "bearish" else "balanced"
-        
         return AgentFinding(
             agent=self.name,
             summary=f"Market sentiment for {symbol} screens as {mood}.",
@@ -46,14 +42,7 @@ class SentimentAnalysisAgent:
                 f"Bearish keyword hits: {bearish_count}",
                 "Social channels can be connected later for Reddit/X-specific scoring.",
             ],
-            data={
-                "score": score, 
-                "bullish_hits": bullish_count, 
-                "bearish_hits": bearish_count,
-                "fear_greed_proxy": fear_greed,
-                "social_buzz_volume": buzz,
-                "positioning_bias": bias,
-            },
+            data={"score": score, "bullish_hits": bullish_count, "bearish_hits": bearish_count},
         )
 
 
