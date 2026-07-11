@@ -25,6 +25,29 @@ const agentIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   "Portfolio Advisor Agent": HelpCircle,
 };
 
+function renderTextWithLinks(text: string) {
+  if (typeof text !== 'string') return text;
+  const urlRegex = /(https?:\/\/[^\s"',)]+)/g;
+  const parts = text.split(urlRegex);
+  
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a 
+          key={i} 
+          href={part} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-mint hover:text-mint/80 transition-colors hover:underline break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: CompanyAnalysis; overrideCompanyName?: string }) {
   const [activeAgentIndex, setActiveAgentIndex] = useState<number>(0);
   const technical = analysis.agents.find((agent) => agent.agent === "Technical Analysis Agent");
@@ -121,7 +144,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
           </div>
           <div className="bg-paper/40 border border-line p-3 rounded-xl col-span-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-steel">Coverage Sources</span>
-            <p className="text-xs font-semibold text-ink mt-0.5 truncate">{sourcesList}</p>
+            <div className="text-xs font-semibold text-ink mt-0.5 break-words">{renderTextWithLinks(sourcesList)}</div>
           </div>
         </div>
       );
@@ -359,7 +382,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                           <CheckCircle className="h-3 w-3" />
                         </span>
                         <span className="break-words">
-                          {formatCurrencySymbols(signal, symbol, analysis.currency)}
+                          {renderTextWithLinks(formatCurrencySymbols(signal, symbol, analysis.currency))}
                         </span>
                       </li>
                     ))}
