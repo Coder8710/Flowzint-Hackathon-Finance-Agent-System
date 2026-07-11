@@ -268,6 +268,7 @@ export default function Home() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedCompany) return;
     setLoading(true);
     setError("");
     setResult(null);
@@ -325,9 +326,11 @@ export default function Home() {
               )}
             </button>
 
-            <div className="flex h-9 items-center border border-line bg-paper px-3.5 text-xs font-bold text-steel rounded-lg max-w-[220px]">
-              <span className="text-mint font-black min-w-0 truncate">{headerLabel}</span>
-            </div>
+            {headerLabel !== "IDLE" && (
+              <div className="flex h-9 items-center border border-line bg-paper px-3.5 text-xs font-bold text-steel rounded-lg max-w-[220px]">
+                <span className="text-mint font-black min-w-0 truncate">{headerLabel}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -517,7 +520,7 @@ export default function Home() {
             {/* Run Button */}
             <button
               type="submit"
-              disabled={loading || query.trim().length < 2}
+              disabled={loading || !selectedCompany}
               className="relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden bg-mint font-black text-white dark:text-slate-950 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(8,153,129,0.35)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {loading ? (
@@ -688,7 +691,7 @@ export default function Home() {
                 They scan market financials, recent news headlines, retail sentiment charts, and sizing portfolios.
               </p>
               
-              <div className="mt-8 grid gap-4 grid-cols-2 max-w-sm w-full text-left">
+              <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-sm w-full text-left">
                 <div className="p-3 bg-paper/40 border border-line rounded-xl">
                   <div className="text-mint font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
                     <Zap className="h-3 w-3" /> Real-time
@@ -697,7 +700,7 @@ export default function Home() {
                 </div>
                 <div className="p-3 bg-paper/40 border border-line rounded-xl">
                   <div className="text-indigo-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <Activity className="h-3 w-3" /> Consensus
+                    <Activity className="h-3 w-3" /> Final Verdict
                   </div>
                   <p className="text-[11px] text-steel/60 leading-relaxed">Agents debate signals to form a final verdict.</p>
                 </div>

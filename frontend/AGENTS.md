@@ -17,12 +17,13 @@ The frontend is a modern web application built using **Next.js (App Router)** an
   - `types.ts`: Defines TypeScript interfaces that map to the backend's Pydantic models, ensuring type safety across the stack.
 
 ## Data Flow
-1. The user submits a query through the UI.
-2. The frontend client (`lib/api.ts`) sends a POST request to the backend's `/analyze` endpoint.
-3. While waiting, the UI displays a loading state to account for the time it takes the backend AI agents to process the data.
-4. Upon receiving the `AnalysisResponse`, the frontend updates its state and dynamically renders the final investment thesis, the master agent's recommendation (Buy/Hold/Sell), and the individual specialist agents' findings.
+1. **Ticker Resolution**: The user searches for a company using the UI's autocomplete "Quick Company Search". This input is processed via a hybrid local/backend lookup against the backend's `/search` endpoint to find the exact Yahoo Finance ticker symbol (e.g., `APOLLOHOSP.NS`).
+2. **Analysis Trigger**: The frontend client (`lib/api.ts`) sends a POST request to the backend's `/analyze` endpoint containing the exact resolved `symbol` and `company_name` (bypassing backend text parsing), alongside the user's risk tolerance and investment horizon. The UI strictly enforces that a company must be selected before analysis begins.
+3. **Loading State**: While waiting, the UI displays a deterministic loading state timeline representing the various agent phases occurring on the backend to keep the user engaged.
+4. **Rendering**: Upon receiving the `AnalysisResponse`, the frontend updates its state and dynamically renders the final investment verdict, the master agent's recommendation (Buy/Hold/Sell), and the individual specialist agents' findings.
 
 ## UI/UX Guidelines
-- The design leverages **TailwindCSS** for responsive, mobile-friendly layouts.
+- The design leverages **TailwindCSS** for responsive, mobile-friendly layouts, including a global dark/light mode toggle.
 - It is intended to look sleek and professional, catering to a financial/fintech aesthetic.
+- Components like `MetricBar` utilize explicit inline CSS gradients and transitions instead of Tailwind classes to ensure dynamic styling (e.g. progressing score bars) animate perfectly without JIT compilation issues.
 - Components should strictly type their props using the interfaces defined in `lib/types.ts`.
