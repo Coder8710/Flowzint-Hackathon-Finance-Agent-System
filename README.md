@@ -60,7 +60,7 @@ Backend:
 - `TAVILY_API_KEY`: optional, enables richer real-time finance news search.
 - `OPENAI_API_KEY`: reserved for future LLM summarization.
 - `GEMINI_API_KEY`: optional alternative LLM key for CrewAI-backed synthesis.
-- `CREWAI_MODEL`: model used by CrewAI, default `gpt-4o-mini`.
+- `CREWAI_MODEL`: model used by CrewAI, default `amazon nova pro`.
 - `CORS_ORIGINS`: comma-separated frontend origins.
 
 Frontend:
