@@ -8,7 +8,7 @@ Multi-agent AI finance assistant for analyzing stocks and companies with market 
 - **Backend:** FastAPI API with a CrewAI master agent and six specialist agents.
 - **Agents:** News, fundamentals, technicals, sentiment, risk, and portfolio advisor (using deep prompt engineering to simulate a professional investment committee).
 - **AI Framework:** CrewAI coordinates the specialist agents for final report synthesis when an LLM key is configured.
-- **Data:** Uses `yfinance` for core metrics and news fallback, with Tavily support (dual-search strategy) for richer real-time news when an API key is configured.
+- **Data:** Uses `yfinance` and Yahoo Finance RSS by default, with Tavily support when an API key is configured.
 - **Output:** Buy/Hold/Sell suggestion, agent evidence, risk score, thesis, action items, and recent headlines.
 
 ## Project Structure
@@ -76,23 +76,18 @@ Frontend:
 
 ## API
 
-### `GET /search?q={query}`
-Returns a list of matching company tickers from Yahoo Finance to power the frontend autocomplete.
-
 ### `POST /analyze`
 
 ```json
 {
-  "query": "Analyze Apollo Hospitals",
-  "symbol": "APOLLOHOSP.NS",
-  "company_name": "Apollo Hospitals Enterprise Limited",
+  "query": "Compare Apple vs Microsoft",
   "risk_tolerance": "medium",
   "horizon": "long",
   "portfolio_context": "I already hold large-cap tech."
 }
 ```
 
-Returns a master-agent summary plus one report per detected ticker. The `symbol` and `company_name` fields are used to bypass backend query NLP parsing for perfect accuracy.
+Returns a master-agent summary plus one report per detected ticker.
 
 ## Notes
 
