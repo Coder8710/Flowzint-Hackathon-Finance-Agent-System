@@ -91,7 +91,7 @@ class DebateSystem:
         # must answer it before the Judge receives the full deliberation.
         bull_rebuttal_task = Task(
             description=(
-                f"{shared}\\n\\nYou have now reviewed the initial bullish and bearish arguments in task context. "
+                f"{shared}\n\nYou have now reviewed the initial bullish and bearish arguments in task context. "
                 "Respond directly to the strongest bearish objections, correct any misreadings of the supplied "
                 "evidence, acknowledge unresolved risks, and state what would invalidate the bull thesis. "
                 "Return raw JSON with response (string) and evidence_refs (array)."
@@ -102,7 +102,7 @@ class DebateSystem:
         )
         bear_rebuttal_task = Task(
             description=(
-                f"{shared}\\n\\nReview the initial bull and bear cases and the Bullish Agent's rebuttal in task context. "
+                f"{shared}\n\nReview the initial bull and bear cases and the Bullish Agent's rebuttal in task context. "
                 "Reply to the strongest bullish points, identify any claims unsupported by the original evidence, "
                 "and explain what remaining risk could change the decision. Return raw JSON with response (string) "
                 "and evidence_refs (array)."
