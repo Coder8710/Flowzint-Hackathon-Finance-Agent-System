@@ -93,8 +93,12 @@ Returns a list of matching company tickers from Yahoo Finance to power the front
 }
 ```
 
-Returns a master-agent summary plus one report per detected ticker. The `symbol` and `company_name` fields are used to bypass backend query NLP parsing for perfect accuracy.
+Returns a master-agent summary plus one report per detected ticker. Each company report includes `debate`, the System 2 Judge verdict, Bull/Bear arguments, judge reasoning, evidence gaps, and execution mode (`llm` or `deterministic_fallback`). The final verdict is also reflected in the legacy `recommendation` field (`Neutral` maps to `Hold`). The `symbol` and `company_name` fields bypass query parsing when supplied.
+
+### `POST /debate`
+
+Accepts a completed System 1 `CompanyAnalysis` JSON object and returns a `DebateReport`. This endpoint does not fetch market data or rerun System 1; it lets an already-produced integrated report be passed directly into System 2.
 
 ## Notes
 
-This is research support, not financial advice. Live data depends on upstream providers and API availability. If live requests or CrewAI credentials are unavailable, the backend returns deterministic fallback analysis so the demo remains usable offline.
+This is research support, not financial advice. Live data depends on upstream providers and API availability. If live requests or CrewAI credentials are unavailable, the backend returns deterministic fallback analysis so the demo remains usable offline. System 2 labels its fallback as `deterministic_fallback`; that path is rule-based evidence triage, not a generated LLM debate.
