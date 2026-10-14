@@ -360,11 +360,11 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
             {debate.debate_rounds.length > 0 && (
               <div className="grid gap-3 md:grid-cols-2 mt-4">
                 <div className="rounded-lg bg-paper/40 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Bull response</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">{debate.mode === "llm" ? "Bull response" : "Bull case signals"}</p>
                   <p className="text-xs text-steel leading-relaxed">{debate.debate_rounds[0].bullish_response}</p>
                 </div>
                 <div className="rounded-lg bg-paper/40 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1">Bear response</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1">{debate.mode === "llm" ? "Bear response" : "Bear case signals"}</p>
                   <p className="text-xs text-steel leading-relaxed">{debate.debate_rounds[0].bearish_response}</p>
                 </div>
               </div>
