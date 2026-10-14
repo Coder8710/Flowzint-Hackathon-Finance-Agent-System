@@ -1,13 +1,14 @@
 # Flowzint Finance AI
 
-Multi-agent AI finance assistant for analyzing stocks and companies with market data, technical indicators, news, sentiment, risk scoring, and portfolio-fit guidance.
+Two-stage agentic finance assistant. System 1 analyzes stocks using specialist agents; System 2 runs an evidence-grounded Bull vs Bear debate and a Judge Agent produces the final Buy/Sell/Neutral verdict.
 
 ## What Is Built
 
 - **Frontend:** Next.js, React, TailwindCSS analysis console.
 - **Backend:** FastAPI API with a CrewAI master agent and six specialist agents.
-- **Agents:** News, fundamentals, technicals, sentiment, risk, and portfolio advisor (using deep prompt engineering to simulate a professional investment committee).
-- **AI Framework:** CrewAI coordinates the specialist agents for final report synthesis when an LLM key is configured.
+- **System 1:** Fundamental, technical, sentiment, news, risk, and portfolio specialist agents coordinated by the investment-committee master agent.
+- **System 2:** Bullish and Bearish advocates evaluate the same System 1 evidence; an independent Judge returns Buy, Sell, or Neutral (mapped to Hold in the legacy recommendation field).
+- **AI Framework:** CrewAI coordinates both LLM-powered report synthesis and the adversarial debate when credentials are configured; deterministic fallback is clearly marked in the response.
 - **Data:** Uses `yfinance` for core metrics and news fallback, with Tavily support (dual-search strategy) for richer real-time news when an API key is configured.
 - **Output:** Buy/Hold/Sell suggestion, agent evidence, risk score, thesis, action items, and recent headlines.
 
@@ -16,7 +17,7 @@ Multi-agent AI finance assistant for analyzing stocks and companies with market 
 ```text
 backend/
   app/
-    agents/       # Master and specialist agents
+    agents/       # System 1 master/specialists and System 2 debate
     crews/        # CrewAI crew definitions
     core/         # Settings
     models/       # API contracts
@@ -60,7 +61,7 @@ Backend:
 - `TAVILY_API_KEY`: optional, enables richer real-time finance news search.
 - `OPENAI_API_KEY`: reserved for future LLM summarization.
 - `GEMINI_API_KEY`: optional alternative LLM key for CrewAI-backed synthesis.
-- `CREWAI_MODEL`: model used by CrewAI, default `amazon nova pro`.
+- `CREWAI_MODEL`: model used by CrewAI, default `bedrock/amazon.nova-pro-v1:0`.
 - `CORS_ORIGINS`: comma-separated frontend origins.
 
 Frontend:
