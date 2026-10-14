@@ -16,7 +16,8 @@ uvicorn app.main:app --reload --port 8000
 
 - `GET /health`
 - `GET /search?q={query}` (Yahoo Finance dynamic autocomplete)
-- `POST /analyze`
+- `POST /analyze` — runs System 1 stock analysis followed by System 2 debate and includes the Judge verdict in the `debate` object.
+- `POST /debate` — accepts a completed `CompanyAnalysis` JSON report and runs only System 2 without re-fetching market data.
 
 ## Data Sources
 - **Yahoo Finance (`yfinance`)**: Used to fetch real-time market snapshots, historical chart data, and native news fallbacks. The backend uses the latest `yfinance` with `curl_cffi` to bypass Yahoo's strict rate limits.
