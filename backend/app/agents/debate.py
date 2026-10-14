@@ -85,6 +85,31 @@ class DebateSystem:
                 "Return raw JSON with thesis, key_arguments, evidence_refs, counterarguments, and confidence (0..1)."),
             expected_output='{"thesis":"...","key_arguments":[],"evidence_refs":[],"counterarguments":[],"confidence":0.0}',
             agent=bear,
+            context=[bull_task],
+        )
+        # A real adversarial exchange: each advocate sees the prior case and
+        # must answer it before the Judge receives the full deliberation.
+        bull_rebuttal_task = Task(
+            description=(
+                f"{shared}\\n\\nYou have now reviewed the initial bullish and bearish arguments in task context. "
+                "Respond directly to the strongest bearish objections, correct any misreadings of the supplied "
+                "evidence, acknowledge unresolved risks, and state what would invalidate the bull thesis. "
+                "Return raw JSON with response (string) and evidence_refs (array)."
+            ),
+            expected_output='{"response":"Evidence-grounded bullish rebuttal...","evidence_refs":[]}',
+            agent=bull,
+            context=[bull_task, bear_task],
+        )
+        bear_rebuttal_task = Task(
+            description=(
+                f"{shared}\\n\\nReview the initial bull and bear cases and the Bullish Agent's rebuttal in task context. "
+                "Reply to the strongest bullish points, identify any claims unsupported by the original evidence, "
+                "and explain what remaining risk could change the decision. Return raw JSON with response (string) "
+                "and evidence_refs (array)."
+            ),
+            expected_output='{"response":"Evidence-grounded bearish reply...","evidence_refs":[]}',
+            agent=bear,
+            context=[bull_task, bear_task, bull_rebuttal_task],
         )
         judge_task = Task(
             description=(f"{shared}\n\nJudge both preceding arguments against the original evidence. Verdict must be "
@@ -92,12 +117,14 @@ class DebateSystem:
                 "Do not simply average confidence. Explain which evidence matters and why. Return raw JSON with verdict, "
                 "confidence (0..1), summary, judge_reasoning (array), bullish_response, bearish_response, evidence_gaps (array)."),
             expected_output='{"verdict":"Buy|Sell|Neutral","confidence":0.0,"summary":"...","judge_reasoning":[],"bullish_response":"...","bearish_response":"...","evidence_gaps":[]}',
-            agent=judge, context=[bull_task, bear_task],
+            agent=judge, context=[bull_task, bear_task, bull_rebuttal_task, bear_rebuttal_task],
         )
-        crew = Crew(agents=[bull, bear, judge], tasks=[bull_task, bear_task, judge_task], process=Process.sequential, verbose=False)
+        crew = Crew(agents=[bull, bear, judge], tasks=[bull_task, bear_task, bull_rebuttal_task, bear_rebuttal_task, judge_task], process=Process.sequential, verbose=False)
         judged = _parse_json_object(str(crew.kickoff()))
         bull_data = _parse_json_object(getattr(getattr(bull_task, "output", None), "raw", ""))
         bear_data = _parse_json_object(getattr(getattr(bear_task, "output", None), "raw", ""))
+        bull_rebuttal = _parse_json_object(getattr(getattr(bull_rebuttal_task, "output", None), "raw", "")) or {}
+        bear_rebuttal = _parse_json_object(getattr(getattr(bear_rebuttal_task, "output", None), "raw", "")) or {}
         if not judged or not bull_data or not bear_data:
             raise ValueError("CrewAI debate returned incomplete JSON.")
         verdict = str(judged.get("verdict", "Neutral"))
@@ -110,8 +137,14 @@ class DebateSystem:
             bull_case=_argument("Bullish Agent", "bullish", bull_data),
             bear_case=_argument("Bearish Agent", "bearish", bear_data),
             debate_rounds=[DebateRound(round_number=1,
-                bullish_response=_safe_str(judged.get("bullish_response"), "The bullish case was reviewed."),
-                bearish_response=_safe_str(judged.get("bearish_response"), "The bearish case was reviewed."))],
+                bullish_response=_safe_str(
+                    bull_rebuttal.get("response"),
+                    _safe_str(judged.get("bullish_response"), "The bullish case was reviewed."),
+                ),
+                bearish_response=_safe_str(
+                    bear_rebuttal.get("response"),
+                    _safe_str(judged.get("bearish_response"), "The bearish case was reviewed."),
+                ))],
             evidence_gaps=_string_list(judged.get("evidence_gaps"), 8),
             source_recommendation=analysis.recommendation, source_confidence=analysis.confidence, mode="llm",
         )
