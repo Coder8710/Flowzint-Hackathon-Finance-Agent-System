@@ -54,6 +54,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
   
   const symbol = analysis.symbol;
   const rec = analysis.recommendation;
+  const debate = analysis.debate;
   const displayName = overrideCompanyName || analysis.company_name;
   
   // Custom theme colors for recommendation banner
@@ -260,6 +261,126 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
           <TrendSparkline symbol={symbol} history={technical?.data.history} currency={analysis.currency} />
         </div>
       </div>
+
+      {/* Agentic System 2: adversarial bull/bear debate and judge verdict */}
+      {debate && (
+        <div className="rounded-2xl glass-panel p-6 border border-line space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
+                  <Activity className="h-4 w-4" />
+                </span>
+                <h3 className="text-sm font-black uppercase tracking-wider text-ink">Agentic System 2 · Bull vs Bear Debate</h3>
+              </div>
+              <p className="text-[13px] text-steel leading-relaxed">{debate.summary}</p>
+            </div>
+            <div className="shrink-0 flex flex-col items-start sm:items-end gap-1.5">
+              <span className={`border px-3 py-1.5 rounded-lg text-sm font-black uppercase tracking-wider ${
+                debate.verdict === "Buy"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                  : debate.verdict === "Sell"
+                    ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-500"
+              }`}>
+                Judge verdict: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict}
+              </span>
+              <span className="text-[10px] text-steel uppercase tracking-wider">
+                Conviction {Math.round(debate.confidence * 100)}% · {debate.mode === "llm" ? "CrewAI debate" : "Deterministic fallback"}
+              </span>
+              <span className="text-[10px] text-steel">
+                System 1: {debate.source_recommendation} ({Math.round(debate.source_confidence * 100)}%)
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Bullish Agent</h4>
+                <span className="text-[10px] font-bold text-steel">Conviction {Math.round(debate.bull_case.confidence * 100)}%</span>
+              </div>
+              <p className="text-[13px] leading-relaxed text-ink">{debate.bull_case.thesis}</p>
+              {debate.bull_case.key_arguments.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-steel mb-1.5">Supporting arguments</p>
+                  <ul className="space-y-1.5 list-disc pl-4">
+                    {debate.bull_case.key_arguments.map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {debate.bull_case.counterarguments.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-steel mb-1.5">Risks acknowledged</p>
+                  <ul className="space-y-1 list-disc pl-4">
+                    {debate.bull_case.counterarguments.slice(0, 3).map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {debate.bull_case.evidence_refs.length > 0 && (
+                <p className="text-[10px] text-steel break-words">Evidence: {debate.bull_case.evidence_refs.join(", ")}</p>
+              )}
+            </article>
+
+            <article className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">Bearish Agent</h4>
+                <span className="text-[10px] font-bold text-steel">Conviction {Math.round(debate.bear_case.confidence * 100)}%</span>
+              </div>
+              <p className="text-[13px] leading-relaxed text-ink">{debate.bear_case.thesis}</p>
+              {debate.bear_case.key_arguments.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-steel mb-1.5">Downside arguments</p>
+                  <ul className="space-y-1.5 list-disc pl-4">
+                    {debate.bear_case.key_arguments.map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {debate.bear_case.counterarguments.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-steel mb-1.5">Bull case considered</p>
+                  <ul className="space-y-1 list-disc pl-4">
+                    {debate.bear_case.counterarguments.slice(0, 3).map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {debate.bear_case.evidence_refs.length > 0 && (
+                <p className="text-[10px] text-steel break-words">Evidence: {debate.bear_case.evidence_refs.join(", ")}</p>
+              )}
+            </article>
+          </div>
+
+          <div className="rounded-xl border border-line bg-paper/30 p-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-ink mb-3">Judge Agent · Why this verdict?</h4>
+            {debate.judge_reasoning.length > 0 ? (
+              <ul className="space-y-2 list-disc pl-4">
+                {debate.judge_reasoning.map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+              </ul>
+            ) : <p className="text-xs text-steel">No additional judge reasoning was returned.</p>}
+            {debate.debate_rounds.length > 0 && (
+              <div className="grid gap-3 md:grid-cols-2 mt-4">
+                <div className="rounded-lg bg-paper/40 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">{debate.mode === "llm" ? "Bull response" : "Bull case signals"}</p>
+                  <p className="text-xs text-steel leading-relaxed">{debate.debate_rounds[0].bullish_response}</p>
+                </div>
+                <div className="rounded-lg bg-paper/40 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1">{debate.mode === "llm" ? "Bear response" : "Bear case signals"}</p>
+                  <p className="text-xs text-steel leading-relaxed">{debate.debate_rounds[0].bearish_response}</p>
+                </div>
+              </div>
+            )}
+            {debate.evidence_gaps.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-line/70">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1.5">Evidence gaps / uncertainty</p>
+                <ul className="space-y-1 list-disc pl-4">
+                  {debate.evidence_gaps.map((item, idx) => <li key={idx} className="text-xs text-steel leading-relaxed">{item}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+          <p className="text-[10px] text-steel/70 leading-relaxed">{debate.disclaimer}</p>
+        </div>
+      )}
 
       {/* Row 2: Thesis & Action Items (Displayed Below Chart Row) */}
       <div className="grid gap-6 md:grid-cols-2">

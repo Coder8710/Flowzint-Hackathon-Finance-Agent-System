@@ -5,6 +5,7 @@ import re
 import logging
 
 from app.agents.fundamental import FundamentalAnalysisAgent
+from app.agents.debate import DebateSystem
 from app.agents.news import NewsAgent
 from app.agents.portfolio import PortfolioAdvisorAgent
 from app.agents.risk import RiskAnalysisAgent
@@ -31,6 +32,7 @@ class MasterAgent:
         self.risk = RiskAnalysisAgent()
         self.portfolio = PortfolioAdvisorAgent()
         self.finance_crew = FinanceCrew()
+        self.debate_system = DebateSystem()
 
     async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
         # Fast path: frontend sent a pre-resolved ticker — skip query parsing entirely
@@ -181,7 +183,7 @@ class MasterAgent:
             logger.info("CrewAI committee synthesis skipped: %s. Using deterministic fallback.", exc)
 
 
-        return CompanyAnalysis(
+        analysis = CompanyAnalysis(
             symbol=symbol,
             company_name=snapshot.company_name,
             recommendation=recommendation,
@@ -194,6 +196,17 @@ class MasterAgent:
             news=news_items,
             currency=snapshot.currency,
         )
+        # System 2 consumes the complete System 1 report as evidence. Its Judge
+        # verdict becomes the final recommendation while source recommendation
+        # and confidence remain recorded inside analysis.debate for auditability.
+        analysis.debate = await asyncio.to_thread(self.debate_system.run, analysis)
+        analysis.recommendation = {
+            "Buy": "Buy",
+            "Sell": "Sell",
+            "Neutral": "Hold",
+        }[analysis.debate.verdict]
+        analysis.confidence = analysis.debate.confidence
+        return analysis
 
 
 async def _search_yahoo_ticker(query_str: str) -> str | None:

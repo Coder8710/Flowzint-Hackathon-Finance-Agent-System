@@ -23,6 +23,37 @@ export type AgentFinding = {
   data: Record<string, unknown>;
 };
 
+export type DebateArgument = {
+  agent: "Bullish Agent" | "Bearish Agent";
+  position: "bullish" | "bearish";
+  thesis: string;
+  key_arguments: string[];
+  evidence_refs: string[];
+  counterarguments: string[];
+  confidence: number;
+};
+
+export type DebateRound = {
+  round_number: number;
+  bullish_response: string;
+  bearish_response: string;
+};
+
+export type DebateReport = {
+  verdict: "Buy" | "Sell" | "Neutral";
+  confidence: number;
+  summary: string;
+  judge_reasoning: string[];
+  bull_case: DebateArgument;
+  bear_case: DebateArgument;
+  debate_rounds: DebateRound[];
+  evidence_gaps: string[];
+  source_recommendation: "Buy" | "Hold" | "Sell";
+  source_confidence: number;
+  mode: "llm" | "deterministic_fallback";
+  disclaimer: string;
+};
+
 export type CompanyAnalysis = {
   symbol: string;
   company_name: string;
@@ -35,6 +66,7 @@ export type CompanyAnalysis = {
   agents: AgentFinding[];
   news: NewsItem[];
   currency?: string;
+  debate?: DebateReport | null;
 };
 
 export type AnalysisResponse = {

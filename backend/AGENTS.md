@@ -22,7 +22,8 @@ The backend is a Python-based **FastAPI** application designed to orchestrate a 
 - `TAVILY_API_KEY`: Optional; if missing, falls back to `yfinance` native news endpoint.
 
 ## Agent System Details
-1. **Master Agent (Investment Committee Chair)**: The root manager in the hierarchical CrewAI process. It coordinates tasks, delegates to specialists, and synthesizes the final Buy/Hold/Sell decision into strict JSON. Prompted to heavily enforce concise 50-word summaries.
+1. **System 1 Master Agent (Investment Committee Chair)**: Coordinates the six specialist analyses and synthesizes the initial report.
+2. **System 2 DebateSystem**: Consumes the completed System 1 report. Its Bullish and Bearish CrewAI agents use the same evidence, then the Judge returns Buy/Sell/Neutral with arguments, reasoning, evidence gaps, and execution mode. If LLM execution fails, a deterministic fallback is explicitly marked as such.
 2. **Specialist Agents**:
    - **News Agent (Senior News & Macro Analyst)**: Interprets headlines for investment relevance and separates signal from noise. Equipped with web search tools to dig into breaking news.
    - **Fundamental Agent (Lead Equity Fundamental Analyst)**: Evaluates valuation multiples, ROIC, debt, and moats. Equipped with web search tools to find SEC filings.
@@ -30,6 +31,11 @@ The backend is a Python-based **FastAPI** application designed to orchestrate a 
    - **Sentiment Agent (Behavioral Finance Strategist)**: Tracks retail vs. institutional behavior, options flow proxy, and overall crowd euphoria/fear.
    - **Risk Agent (Chief Risk Officer)**: Focuses exclusively on capital preservation, stressing the bull thesis, finding hidden trapdoors, and identifying catastrophic scenarios. Employs a custom `_stdev` function to bypass Python 3.12/numpy floating point incompatibilities.
    - **Portfolio Agent (Private Wealth Manager)**: Fiduciary agent that ensures the investment aligns with the specific user's risk tolerance, time horizon, and existing portfolio context.
+
+## System 2 Contract
+- `POST /analyze` runs both systems in sequence and returns the final Judge verdict in `recommendation` (`Neutral` is mapped to legacy `Hold`), while `debate.source_recommendation` retains the System 1 recommendation.
+- `POST /debate` accepts a completed `CompanyAnalysis` and runs only System 2. It is suitable for passing an existing evidence report without re-fetching stock data.
+- Debate output is available as `DebateReport`; `mode` is `llm` or `deterministic_fallback`. The fallback is heuristic evidence triage, not an LLM-generated dialogue.
 
 ## Entry Point
 - `main.py`: Exposes the `/analyze` endpoint which accepts user requests (ticker symbol, risk tolerance, horizon) and kicks off the Master Agent's analysis pipeline. It expects a pre-resolved `symbol` from the frontend autocomplete, but retains a dynamic `_extract_symbols` NLP fallback if only a raw text query is provided.

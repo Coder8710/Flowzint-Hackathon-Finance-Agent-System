@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import time
 from functools import lru_cache
 
@@ -11,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from app.agents.master import MasterAgent
+from app.agents.debate import DebateSystem
 from app.core.config import get_settings
-from app.models.analysis import AnalysisRequest, AnalysisResponse
+from app.models.analysis import AnalysisRequest, AnalysisResponse, CompanyAnalysis, DebateReport
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -27,6 +29,7 @@ app.add_middleware(
 )
 
 master_agent = MasterAgent()
+debate_system = DebateSystem()
 
 
 @app.on_event("startup")
@@ -521,6 +524,19 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
             status_code=500,
             detail="An unexpected error occurred during analysis. Please try again.",
         )
+
+
+@app.post("/debate", response_model=DebateReport)
+async def debate(analysis: CompanyAnalysis) -> DebateReport:
+    """Run System 2 on a completed System 1 report without repeating stock data retrieval."""
+    try:
+        return await asyncio.to_thread(debate_system.run, analysis)
+    except Exception as exc:
+        logger.exception("Unexpected error during adversarial debate for %s", analysis.symbol)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred during the adversarial debate. Please try again.",
+        ) from exc
 
 
 @app.get("/search")
