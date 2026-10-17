@@ -53,7 +53,10 @@ class DebateSystem:
             "independently retrieve live data.\n\nSYSTEM 1 EVIDENCE:\n"
             + json.dumps(evidence, ensure_ascii=False, indent=2, default=str)
         )
-        llm = self.settings.crewai_model
+        # Route through Mantle signing proxy when bedrock_mantle/ prefix is set
+        from app.crews.finance_crew import resolve_llm
+        llm = resolve_llm(self.settings)
+
         bull = Agent(
             role="Bullish Equity Analyst",
             goal="Construct the strongest fair, evidence-grounded upside case and answer bearish objections.",
