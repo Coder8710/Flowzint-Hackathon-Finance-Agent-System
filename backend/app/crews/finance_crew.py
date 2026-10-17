@@ -32,6 +32,39 @@ class CrewAIUnavailableError(RuntimeError):
     """Raised when CrewAI cannot run in the current environment."""
 
 
+def resolve_llm(settings):
+    """
+    Return the LiteLLM model identifier (string) or LLM object for CrewAI agents.
+
+    When CREWAI_MODEL starts with ``bedrock_mantle/``, a local SigV4 signing
+    proxy is started in a daemon thread on port 8099.  CrewAI is then pointed
+    at ``openai/<model-id>`` with the proxy as its base_url, so LiteLLM routes
+    all calls through the proxy which signs and forwards them to:
+        https://bedrock-mantle.<region>.api.aws/v1
+    """
+    if settings.is_bedrock_mantle:
+        from app.services.mantle_proxy import start_mantle_proxy
+        from crewai import LLM  # crewai re-exports LLM; requires litellm to be installed
+
+        proxy_base_url = start_mantle_proxy(
+            region=settings.aws_region_name or "us-east-1",
+            access_key=settings.aws_access_key_id or "",
+            secret_key=settings.aws_secret_access_key or "",
+        )
+        model_id = settings.bedrock_mantle_model_id  # e.g. moonshotai.kimi-k2.5
+        logger.info(
+            "Routing LLM calls through Mantle proxy: openai/%s via %s",
+            model_id, proxy_base_url,
+        )
+        return LLM(
+            model=f"openai/{model_id}",
+            base_url=proxy_base_url,
+            api_key="mantle-proxy",  # proxy handles real auth; dummy key required by LiteLLM
+        )
+    # All other providers (openai, openrouter, bedrock, gemini …) — pass through as-is
+    return settings.crewai_model
+
+
 class FinanceCrew:
     """CrewAI implementation of the multi-agent stock analyst team."""
 
@@ -90,8 +123,8 @@ class FinanceCrew:
             scrape_tool = ScrapeWebsiteTool()
         except Exception as exc:
             raise CrewAIUnavailableError(f"Failed to initialize search/scrape tools: {exc}") from exc
-        llm = self.settings.crewai_model
 
+        llm = resolve_llm(self.settings)
         logger.info("Building production CrewAI agents for %s", snapshot.symbol)
 
         # -----------------------------------------------------------------

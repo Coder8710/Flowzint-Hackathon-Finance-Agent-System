@@ -54,6 +54,16 @@ class Settings(BaseSettings):
         return False
 
     @property
+    def is_bedrock_mantle(self) -> bool:
+        """True when CREWAI_MODEL uses the bedrock_mantle/ prefix."""
+        return self.crewai_model.startswith("bedrock_mantle/")
+
+    @property
+    def bedrock_mantle_model_id(self) -> str:
+        """Strip the bedrock_mantle/ prefix to get the raw Mantle model ID."""
+        return self.crewai_model.removeprefix("bedrock_mantle/")
+
+    @property
     def has_news_key(self) -> bool:
         """Check if the Tavily news API key is configured."""
         return bool(self.tavily_api_key)
