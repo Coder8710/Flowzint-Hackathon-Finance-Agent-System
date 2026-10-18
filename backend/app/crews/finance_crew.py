@@ -52,6 +52,8 @@ def resolve_llm(settings):
             secret_key=settings.aws_secret_access_key or "",
         )
         model_id = settings.bedrock_mantle_model_id  # e.g. moonshotai.kimi-k2.5
+        os.environ["OPENAI_API_KEY"] = "mantle-proxy"
+        os.environ["OPENAI_API_BASE"] = proxy_base_url
         logger.info(
             "Routing LLM calls through Mantle proxy: openai/%s via %s",
             model_id, proxy_base_url,
@@ -61,6 +63,10 @@ def resolve_llm(settings):
             base_url=proxy_base_url,
             api_key="mantle-proxy",  # proxy handles real auth; dummy key required by LiteLLM
         )
+    if settings.gemini_api_key and settings.crewai_model.startswith("bedrock/"):
+        return "gemini/gemini-flash-latest"
+    if settings.openai_api_key and settings.crewai_model.startswith("bedrock/"):
+        return "openai/gpt-4o"
     # All other providers (openai, openrouter, bedrock, gemini …) — pass through as-is
     return settings.crewai_model
 
@@ -448,16 +454,17 @@ class FinanceCrew:
                 f"  Point 4 - Competitive Moat (min 50 words): Name 1-2 direct competitors and compare a key metric. Rate the moat as wide/narrow/none and justify with one specific structural advantage this company has over peers.\n\n"
                 f"  Point 5 - Risk vs Reward (min 50 words): State the bull case price target with % upside, the bear case stop-loss with % downside, and the reward-to-risk ratio. Recommend a position size % suited to this client's risk tolerance.\n\n"
                 f"  Point 6 - Macro Context (min 50 words): Name 1-2 specific macro variables (RBI/Fed rate cycle, currency, commodity) affecting this sector right now and explain precisely how each one impacts this company's earnings and stock price.\n\n"
-                f"PHASE 6 - NEXT ACTION ITEMS (5 specific, time-bound investor instructions):\n"
+                f"PHASE 6 - NEXT ACTION ITEMS (5 specific, time-bound investor instructions ranked strictly by importance):\n"
+                f"Rank all actions in order of importance / urgency (the most important action MUST come first, then second, and so on).\n"
                 f"Each action MUST contain: exact verb + specific price level or metric + specific date or named event + one-sentence rationale.\n"
                 f"Generic actions like 'Monitor the stock' are not acceptable. Be precise enough that the investor can act immediately.\n\n"
                 f"Good example: 'Set a GTC limit buy at Rs 1840 (200-DMA support), to be reviewed on Q2FY25 earnings day (expected late October),"
                 f"because this level has held as demand zone three times in 18 months and a bounce here confirms the bull thesis.'\n\n"
-                f"  Action 1 - Entry or Add-On Trigger (specific price + date)\n"
-                f"  Action 2 - Stop-Loss Protocol (specific price + what event breaks the thesis)\n"
-                f"  Action 3 - Earnings or Catalyst Watch (event name + date + specific metric to monitor)\n"
-                f"  Action 4 - Profit-Taking Strategy (specific price target + percentage of position to trim)\n"
-                f"  Action 5 - Thesis Invalidation (specific metric or event that forces an immediate exit)\n\n"
+                f"  Action 1 (Most Critical) - Immediate Trigger (Entry level or capital preservation action)\n"
+                f"  Action 2 (High Priority) - Risk Protocol (Stop-loss level or sizing limit to protect capital)\n"
+                f"  Action 3 (Medium Priority) - Execution Milestone (Profit target or tranche deployment)\n"
+                f"  Action 4 (Tactical Watch) - Earnings or Catalyst Date (Event name + date + key metric)\n"
+                f"  Action 5 (Contingency) - Thesis Invalidation Rule (Condition that forces an immediate full exit)\n\n"
                 f"Executive summary: 4-5 sentences covering fundamental picture, technical setup, key risk, and final verdict with conviction level (HIGH/MEDIUM/LOW).\n\n"
                 f"Return ONLY valid raw JSON - no markdown wrappers. The JSON must exactly match:\n"
                 f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "Bull case: Rs X (+Y%), Base case: Rs X, Bear case: Rs X (-Y%)", '
@@ -491,6 +498,7 @@ class FinanceCrew:
             tasks=tasks,
             process=Process.hierarchical,
             manager_agent=master_agent,
+            memory=False,
             verbose=False,
             output_log_file="crew_execution.log",
         )

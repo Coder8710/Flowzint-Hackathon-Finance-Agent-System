@@ -528,7 +528,7 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
 
 @app.post("/debate", response_model=DebateReport)
 async def debate(analysis: CompanyAnalysis) -> DebateReport:
-    """Run System 2 on a completed System 1 report without repeating stock data retrieval."""
+    """Run the Debate Arena on a completed Specialist Committee report without repeating stock data retrieval."""
     try:
         return await asyncio.to_thread(debate_system.run, analysis)
     except Exception as exc:

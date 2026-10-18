@@ -195,7 +195,7 @@ def create_fundamental_agent(llm: str, search_tool, scrape_tool) -> "Agent":
         llm=llm,
         tools=[search_tool, scrape_tool],
         verbose=False,
-        memory=True,
+        memory=False,
         max_iter=15,
         max_rpm=10,
         cache=True,

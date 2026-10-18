@@ -138,7 +138,7 @@ def create_sentiment_agent(llm: str, search_tool) -> "Agent":
         llm=llm,
         tools=[search_tool],
         verbose=False,
-        memory=True,
+        memory=False,
         max_iter=15,
         max_rpm=10,
         cache=True,

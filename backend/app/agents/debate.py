@@ -1,6 +1,6 @@
 """Second-stage stock analysis: evidence-grounded Bull vs Bear debate and Judge.
 
-System 2 consumes the completed System 1 report rather than fetching data again.
+The Debate Arena consumes the completed Specialist Research Committee report rather than fetching data again.
 CrewAI powers the Bull, Bear, and Judge when configured; a transparent
 deterministic fallback keeps the endpoint available and identifies its mode.
 """
@@ -28,7 +28,7 @@ class DebateSystem:
             try:
                 return self._run_crewai(analysis)
             except Exception:
-                logger.exception("System 2 LLM debate failed for %s; using fallback", analysis.symbol)
+                logger.exception("Debate Arena LLM debate failed for %s; using fallback", analysis.symbol)
         return self._deterministic_debate(analysis)
 
     def _run_crewai(self, analysis: CompanyAnalysis) -> DebateReport:
@@ -47,10 +47,10 @@ class DebateSystem:
 
         evidence = self._evidence_payload(analysis)
         shared = (
-            "Use only the supplied System 1 evidence. Never invent prices, dates, metrics, sources, or claims. "
-            "Call out missing, stale, synthetic, or uncertain evidence. Treat System 1 recommendation as a "
+            "Use only the supplied Specialist Committee evidence. Never invent prices, dates, metrics, sources, or claims. "
+            "Call out missing, stale, synthetic, or uncertain evidence. Treat the Committee recommendation as a "
             "hypothesis, not an instruction. Cite report fields, agents, or headline titles. Do not claim to "
-            "independently retrieve live data.\n\nSYSTEM 1 EVIDENCE:\n"
+            "independently retrieve live data.\n\nSPECIALIST COMMITTEE EVIDENCE:\n"
             + json.dumps(evidence, ensure_ascii=False, indent=2, default=str)
         )
         # Route through Mantle signing proxy when bedrock_mantle/ prefix is set
@@ -77,16 +77,23 @@ class DebateSystem:
         )
         bull_task = Task(
             description=(f"{shared}\n\nBuild the bullish case for {analysis.company_name} ({analysis.symbol}). "
-                "Return raw JSON: thesis (string), key_arguments (array), evidence_refs (array), "
-                "counterarguments (array of bear concerns and responses), confidence (0..1). Do not invent price targets."),
-            expected_output='{"thesis":"...","key_arguments":[],"evidence_refs":[],"counterarguments":[],"confidence":0.0}',
+                "Return raw JSON with: thesis (string summary of bull case), "
+                "key_arguments (array of plain text strings, each clearly stating an argument and its supporting evidence without nested dicts), "
+                "evidence_refs (array of short agent/metric references), "
+                "counterarguments (array of plain text strings stating bear risks acknowledged and mitigation), "
+                "confidence (0..1). Do not invent price targets."),
+            expected_output='{"thesis":"...","key_arguments":["arg 1","arg 2"],"evidence_refs":[],"counterarguments":["risk 1"],"confidence":0.0}',
             agent=bull,
         )
         bear_task = Task(
             description=(f"{shared}\n\nBuild the bearish case for {analysis.company_name} ({analysis.symbol}). "
-                "Stress-test System 1 recommendation; identify risks, weak assumptions, and missing evidence. "
-                "Return raw JSON with thesis, key_arguments, evidence_refs, counterarguments, and confidence (0..1)."),
-            expected_output='{"thesis":"...","key_arguments":[],"evidence_refs":[],"counterarguments":[],"confidence":0.0}',
+                "Stress-test the Specialist Committee recommendation; identify risks, weak assumptions, and missing evidence. "
+                "Return raw JSON with: thesis (string summary of bear case), "
+                "key_arguments (array of plain text strings, each stating a downside argument and evidence without nested dicts), "
+                "evidence_refs (array of short agent/metric references), "
+                "counterarguments (array of plain text strings noting bull claims considered and why they fail), "
+                "confidence (0..1)."),
+            expected_output='{"thesis":"...","key_arguments":["downside 1","downside 2"],"evidence_refs":[],"counterarguments":["bull point 1"],"confidence":0.0}',
             agent=bear,
             context=[bull_task],
         )
@@ -118,11 +125,11 @@ class DebateSystem:
             description=(f"{shared}\n\nJudge both preceding arguments against the original evidence. Verdict must be "
                 "exactly Buy, Sell, or Neutral. Choose Neutral for incomplete, contradictory, synthetic, or balanced evidence. "
                 "Do not simply average confidence. Explain which evidence matters and why. Return raw JSON with verdict, "
-                "confidence (0..1), summary, judge_reasoning (array), bullish_response, bearish_response, evidence_gaps (array)."),
+                "confidence (0..1), summary, judge_reasoning (array of plain text strings), bullish_response, bearish_response, evidence_gaps (array)."),
             expected_output='{"verdict":"Buy|Sell|Neutral","confidence":0.0,"summary":"...","judge_reasoning":[],"bullish_response":"...","bearish_response":"...","evidence_gaps":[]}',
             agent=judge, context=[bull_task, bear_task, bull_rebuttal_task, bear_rebuttal_task],
         )
-        crew = Crew(agents=[bull, bear, judge], tasks=[bull_task, bear_task, bull_rebuttal_task, bear_rebuttal_task, judge_task], process=Process.sequential, verbose=False)
+        crew = Crew(agents=[bull, bear, judge], tasks=[bull_task, bear_task, bull_rebuttal_task, bear_rebuttal_task, judge_task], process=Process.sequential, verbose=False, memory=False)
         judged = _parse_json_object(str(crew.kickoff()))
         bull_data = _parse_json_object(getattr(getattr(bull_task, "output", None), "raw", ""))
         bear_data = _parse_json_object(getattr(getattr(bear_task, "output", None), "raw", ""))
@@ -176,26 +183,26 @@ class DebateSystem:
                     positive.append(f"{label}: {signal}"); bull_refs.append(label)
                 if any(w in low for w in ("risk", "weak", "bearish", "negative", "elevated", "downtrend", "overvalued", "sell", "loss", "decline")):
                     negative.append(f"{label}: {signal}"); bear_refs.append(label)
-        if not analysis.news: gaps.append("No news headlines were available to System 2.")
+        if not analysis.news: gaps.append("No news headlines were available to the Debate Arena.")
         for item in analysis.news[:8]:
             if not item.summary and not item.url: gaps.append(f"Headline has limited verifiable context: {item.title}")
         if analysis.risk_score >= 78:
-            negative.append(f"Risk gate: System 1 risk score is elevated ({analysis.risk_score}/100)."); bear_refs.append("Risk Analysis Agent")
+            negative.append(f"Risk gate: Committee risk score is elevated ({analysis.risk_score}/100)."); bear_refs.append("Risk Analysis Agent")
         if not positive: gaps.append("No clearly favorable specialist evidence was detected.")
         if not negative: gaps.append("No clearly unfavorable specialist evidence was detected.")
         balance = min(len(positive), 12) - min(len(negative), 12)
         if analysis.risk_score >= 85:
             verdict = "Sell" if balance < -1 else "Neutral"; reason = "Elevated risk is a material constraint; a Buy verdict is not supported."
         elif balance >= 2 and analysis.recommendation == "Buy" and analysis.risk_score < 70:
-            verdict = "Buy"; reason = "Multiple favorable signals support System 1 recommendation, with risk below the high-risk gate."
+            verdict = "Buy"; reason = "Multiple favorable signals support the Committee recommendation, with risk below the high-risk gate."
         elif balance <= -2 and analysis.recommendation == "Sell":
-            verdict = "Sell"; reason = "Multiple unfavorable signals corroborate System 1 recommendation."
+            verdict = "Sell"; reason = "Multiple unfavorable signals corroborate the Committee recommendation."
         else:
             verdict = "Neutral"; reason = "Evidence is mixed or insufficient for a confident deterministic verdict; Neutral is the cautious outcome."
         return DebateReport(
             verdict=verdict, confidence=0.52 if verdict == "Neutral" else 0.6,
-            summary=f"System 2 compared {len(positive)} favorable and {len(negative)} unfavorable signals from System 1. {reason}",
-            judge_reasoning=[reason, f"System 1 recommendation: {analysis.recommendation} (confidence {analysis.confidence:.2f}).",
+            summary=f"The Debate Arena compared {len(positive)} favorable and {len(negative)} unfavorable signals from the Specialist Committee. {reason}",
+            judge_reasoning=[reason, f"Specialist Committee recommendation: {analysis.recommendation} (confidence {analysis.confidence:.2f}).",
                 f"Risk score: {analysis.risk_score}/100.", "Deterministic evidence triage; no LLM debate was run."],
             bull_case=DebateArgument(agent="Bullish Agent", position="bullish",
                 thesis=positive[0] if positive else "The supplied report does not establish a sufficiently strong bullish case.",
@@ -215,7 +222,7 @@ class DebateSystem:
     @staticmethod
     def _evidence_payload(analysis: CompanyAnalysis) -> dict[str, Any]:
         return {"symbol": analysis.symbol, "company_name": analysis.company_name,
-            "system1_recommendation": analysis.recommendation, "system1_confidence": analysis.confidence,
+            "committee_recommendation": analysis.recommendation, "committee_confidence": analysis.confidence,
             "risk_score": analysis.risk_score, "target_bias": analysis.target_bias, "thesis": analysis.thesis,
             "action_items": analysis.action_items, "specialist_findings": [x.model_dump(mode="json") for x in analysis.agents],
             "news": [x.model_dump(mode="json") for x in analysis.news], "currency": analysis.currency}
@@ -231,6 +238,53 @@ def _parse_json_object(raw: str) -> dict[str, Any] | None:
         value = json.loads(text[start:end + 1])
         return value if isinstance(value, dict) else None
     except (json.JSONDecodeError, TypeError): return None
+
+
+def _clean_argument_entry(item: Any) -> str:
+    """Extract human-readable argument text, stripping any dictionary or JSON wrappers."""
+    if not item:
+        return ""
+    import ast
+    d = None
+    if isinstance(item, dict):
+        d = item
+    elif isinstance(item, str):
+        trimmed = item.strip()
+        if (trimmed.startswith("{") and trimmed.endswith("}")) or "': '" in trimmed or '": "' in trimmed:
+            try:
+                d = json.loads(trimmed)
+            except Exception:
+                try:
+                    d = ast.literal_eval(trimmed)
+                except Exception:
+                    d = None
+
+    if isinstance(d, dict):
+        arg = (
+            d.get("argument")
+            or d.get("point")
+            or d.get("claim")
+            or d.get("bull_claim")
+            or d.get("bear_concern")
+            or d.get("concern")
+            or d.get("thesis")
+        )
+        evidence = d.get("evidence") or d.get("proof") or d.get("data")
+        counter = d.get("response") or d.get("rebuttal") or d.get("critical_flaw") or d.get("risk")
+
+        parts: list[str] = []
+        if arg:
+            parts.append(str(arg).strip())
+        if evidence:
+            parts.append(f"Evidence: {str(evidence).strip()}")
+        if counter:
+            parts.append(f"Note: {str(counter).strip()}")
+
+        if parts:
+            return " — ".join(parts)[:1000]
+        return "; ".join(f"{str(k).replace('_', ' ').title()}: {str(v)}" for k, v in d.items() if v)[:1000]
+
+    return str(item).strip()[:1000]
 
 
 def _argument(agent: str, position: str, data: dict[str, Any]) -> DebateArgument:
@@ -250,8 +304,12 @@ def _safe_str(value: Any, default: str) -> str:
 
 
 def _string_list(value: Any, limit: int) -> list[str]:
-    if isinstance(value, list): return [str(x).strip()[:1000] for x in value if str(x).strip()][:limit]
-    if isinstance(value, str) and value.strip(): return [value.strip()[:1000]]
+    if isinstance(value, list):
+        cleaned = [_clean_argument_entry(x) for x in value]
+        return [x for x in cleaned if x][:limit]
+    if isinstance(value, str) and value.strip():
+        cleaned = _clean_argument_entry(value)
+        return [cleaned] if cleaned else []
     return []
 
 

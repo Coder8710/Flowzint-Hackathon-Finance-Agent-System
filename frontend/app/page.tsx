@@ -22,6 +22,7 @@ import {
 import { analyzeStock } from "@/lib/api";
 import { AnalysisResponse } from "@/lib/types";
 import { AnalysisReport } from "@/components/AnalysisReport";
+import { PortfolioContextGuide } from "@/components/PortfolioContextGuide";
 import { formatCurrencySymbols } from "@/lib/currency";
 import { filterCompaniesLocal, addCompaniesToPool } from "../lib/companies";
 
@@ -504,18 +505,10 @@ export default function Home() {
             </div>
 
             {/* Portfolio Context */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="portfolio">
-                Client Portfolio Context (Optional)
-              </label>
-              <textarea
-                id="portfolio"
-                value={portfolioContext}
-                onChange={(event) => setPortfolioContext(event.target.value)}
-                placeholder="Example: Currently overweight tech; looking for defensive or small-cap setups."
-                className="mt-2 min-h-20 w-full resize-none border border-line bg-terminalBg/40 px-4 py-3 text-xs text-ink outline-none rounded-xl transition-all focus:border-mint focus:ring-1 focus:ring-mint/20 placeholder-steel/40"
-              />
-            </div>
+            <PortfolioContextGuide 
+              value={portfolioContext} 
+              onChange={setPortfolioContext} 
+            />
 
             {/* Run Button */}
             <button
