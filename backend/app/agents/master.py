@@ -196,8 +196,8 @@ class MasterAgent:
             news=news_items,
             currency=snapshot.currency,
         )
-        # System 2 consumes the complete System 1 report as evidence. Its Judge
-        # verdict becomes the final recommendation while source recommendation
+        # The Debate Arena consumes the complete Specialist Committee report as evidence. Its Judge
+        # verdict becomes the final recommendation while the Committee's recommendation
         # and confidence remain recorded inside analysis.debate for auditability.
         analysis.debate = await asyncio.to_thread(self.debate_system.run, analysis)
         analysis.recommendation = {
@@ -392,20 +392,76 @@ def _bias_from_score(score: float) -> str:
 
 
 def _top_thesis(agents: list) -> list[str]:
-    thesis: list[str] = []
+    """Generate structured, understandable investment thesis pillars from agent data."""
+    pillars: list[str] = []
+
     for agent in agents:
-        # Include the agent summary which now contains computed metrics
-        if agent.summary:
-            thesis.append(f"{agent.agent.replace(' Agent', '')}: {agent.summary}")
-        # Include the most impactful signal
-        if agent.signals:
-            thesis.append(agent.signals[0])
-    
-    unique_thesis = []
-    for t in thesis:
-        if t not in unique_thesis:
-            unique_thesis.append(t)
-    return unique_thesis[:6]
+        name = agent.agent
+        data = agent.data or {}
+        summary = agent.summary or ""
+
+        if "Fundamental" in name:
+            pe = data.get("pe_ratio", "N/A")
+            intrinsic = data.get("intrinsic_value_estimate", "N/A")
+            score = data.get("score", 50)
+            if intrinsic and intrinsic != "N/A":
+                pillars.append(
+                    f"📊 Valuation: Intrinsic value estimated at {intrinsic}. "
+                    f"P/E ratio is {pe}. Fundamental score: {score}/100. "
+                    f"Investor takeaway — {summary}"
+                )
+            else:
+                pillars.append(f"📊 Valuation: {summary} (Fundamental score: {score}/100)")
+
+        elif "Technical" in name:
+            trend = data.get("trend_direction", "neutral")
+            signal = data.get("signal", "neutral")
+            rsi = data.get("rsi_14", "N/A")
+            support = data.get("key_support", "N/A")
+            resistance = data.get("key_resistance", "N/A")
+            pillars.append(
+                f"📈 Technical Trend: Price trend is {trend} with a {signal} signal. "
+                f"RSI(14): {rsi}. Key support: {support}, resistance: {resistance}."
+            )
+
+        elif "News" in name:
+            score = data.get("score", 50)
+            top_signal = agent.signals[0] if agent.signals else summary
+            pillars.append(
+                f"📰 Top Catalyst: {top_signal} (News sentiment score: {score}/100)"
+            )
+
+        elif "Sentiment" in name:
+            sent_score = data.get("sentiment_score", 0)
+            fear_greed = data.get("fear_greed_proxy", "neutral")
+            contrarian = data.get("contrarian_signal", False)
+            pillars.append(
+                f"💬 Market Sentiment: Score {sent_score}/100, mood is {fear_greed}. "
+                f"{'⚠️ Contrarian signal detected — crowd may be wrong.' if contrarian else 'No contrarian signal.'}"
+            )
+
+        elif "Risk" in name:
+            risk_score = data.get("risk_score", 50)
+            risks = data.get("risks", [])
+            risk_summary = risks[0] if risks else "No major risks flagged."
+            level = "Low" if risk_score < 35 else "Moderate" if risk_score < 65 else "Elevated"
+            pillars.append(
+                f"🛡️ Risk Profile: {level} risk ({risk_score}/100). Key risk — {risk_summary}"
+            )
+
+        elif "Portfolio" in name:
+            fit_score = data.get("fit_score", 50)
+            advice = data.get("allocation_advice", summary)
+            pillars.append(
+                f"🎯 Portfolio Fit: Suitability score {fit_score}/100. {advice}"
+            )
+
+    # Deduplicate while preserving order
+    unique_pillars: list[str] = []
+    for p in pillars:
+        if p not in unique_pillars:
+            unique_pillars.append(p)
+    return unique_pillars[:6]
 
 
 def _action_items(symbol: str, recommendation: str, risk_score: int, agents: list) -> list[str]:
@@ -488,7 +544,7 @@ def create_master_agent(llm: str) -> "Agent":
         ),
         llm=llm,
         verbose=False,
-        memory=True,
+        memory=False,
         max_iter=15,
         max_rpm=10,
         cache=True,
