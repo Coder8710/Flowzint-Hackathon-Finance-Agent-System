@@ -36,7 +36,7 @@ function buildNavItems(symbol: string | null, hasData: boolean): NavItem[] {
     { label: "Overview",          slug: "overview",    href: base ?? "/",                   icon: BarChart2,    disabled: !hasData },
     { label: "Investment Debate", slug: "debate",      href: base ? `${base}/debate` : "/",      icon: Scale,        disabled: !hasData },
     { label: "Investment Thesis", slug: "thesis",      href: base ? `${base}/thesis` : "/",      icon: BookOpen,     disabled: !hasData },
-    { label: "Action Plan",       slug: "action-plan", href: base ? `${base}/action-plan` : "/", icon: CheckSquare,  disabled: !hasData },
+    { label: "Action Plan",       slug: "actions",     href: base ? `${base}/actions` : "/",     icon: CheckSquare,  disabled: !hasData },
     { label: "Analyst Reports",   slug: "reports",     href: base ? `${base}/reports` : "/",     icon: FileText,     disabled: !hasData },
     { label: "News & Catalysts",  slug: "news",        href: base ? `${base}/news` : "/",        icon: Newspaper,    disabled: !hasData },
   ];
