@@ -169,7 +169,7 @@ export function DebateArenaModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black uppercase tracking-wider text-ink">
-                  Investment Committee Deliberation
+                  Adversarial Debate Arena
                 </h2>
                 <span className="font-mono-data text-xs font-bold text-mint bg-mint/10 border border-mint/20 px-2 py-0.5 rounded">
                   {symbol}
@@ -179,19 +179,19 @@ export function DebateArenaModal({
                 </span>
               </div>
               <p className="text-[11px] text-steel">
-                Institutional Equity Deliberation · {debate.mode === "llm" ? "Committee Deliberation (CrewAI)" : "Quantitative Synthesis"}
+                Adversarial Equity Adjudication · {debate.mode === "llm" ? "CrewAI LLM Debate" : "Deterministic Fallback"}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${verdictStyles}`}>
-              Committee Ruling: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict} ({judgeConfidence}%)
+              Judge: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict} ({judgeConfidence}%)
             </span>
             <button
               onClick={onClose}
               className="p-1.5 rounded-xl border border-line bg-paper/40 text-steel hover:text-ink hover:bg-paper transition-all"
-              title="Close Deliberation (Esc)"
+              title="Close Debate Arena (Esc)"
             >
               <X className="h-5 w-5" />
             </button>
@@ -203,13 +203,13 @@ export function DebateArenaModal({
           <div className="flex items-center justify-between text-xs font-bold mb-1.5">
             <div className="flex items-center gap-1.5 text-emerald-500">
               <TrendingUp className="h-4 w-4" />
-              <span>LONG THESIS (BULL CASE) ({bullConfidence}%)</span>
+              <span>BULLISH ADVOCATE ({bullConfidence}%)</span>
             </div>
             <span className="text-[10px] uppercase font-mono-data text-steel">
               Evidence Conviction Balance
             </span>
             <div className="flex items-center gap-1.5 text-rose-500">
-              <span>SHORT THESIS (BEAR CASE) ({bearConfidence}%)</span>
+              <span>BEARISH ADVOCATE ({bearConfidence}%)</span>
               <TrendingDown className="h-4 w-4" />
             </div>
           </div>
@@ -237,7 +237,7 @@ export function DebateArenaModal({
             }`}
           >
             <Scale className="h-3.5 w-3.5" />
-            <span>Long vs Short Theses</span>
+            <span>Advocate Case Dossiers</span>
           </button>
           <button
             onClick={() => setActiveTab("rounds")}
@@ -248,7 +248,7 @@ export function DebateArenaModal({
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            <span>Deliberation & Cross-Examination</span>
+            <span>Cross-Examination Rounds</span>
           </button>
           <button
             onClick={() => setActiveTab("judge")}
@@ -259,7 +259,7 @@ export function DebateArenaModal({
             }`}
           >
             <ShieldAlert className="h-3.5 w-3.5" />
-            <span>Committee Ruling & Findings</span>
+            <span>Judge Adjudication & Evidence Gaps</span>
           </button>
         </div>
 
@@ -268,7 +268,7 @@ export function DebateArenaModal({
           {activeTab === "arena" && (
             <div className="grid gap-6 lg:grid-cols-2">
               
-              {/* Long Thesis Advocate Pod */}
+              {/* Bullish Advocate Pod */}
               <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
                   <div className="flex items-center gap-2">
@@ -277,9 +277,9 @@ export function DebateArenaModal({
                     </span>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-emerald-500">
-                        Long Thesis (Bull Case)
+                        Bullish Advocate Case
                       </h3>
-                      <p className="text-[11px] text-steel">Fundamental Upside & Growth Catalysts</p>
+                      <p className="text-[11px] text-steel">Upside Champion & Evidence Defense</p>
                     </div>
                   </div>
                   <span className="text-xs font-mono-data font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
@@ -333,7 +333,7 @@ export function DebateArenaModal({
                 {debate.bull_case.counterarguments.length > 0 && (
                   <div>
                     <h4 className="text-[11px] font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1">
-                      <AlertCircle className="h-3.5 w-3.5" /> Downside Risks Acknowledged
+                      <AlertCircle className="h-3.5 w-3.5" /> Risks Acknowledged by Bull
                     </h4>
                     <ul className="space-y-1.5">
                       {debate.bull_case.counterarguments.map((raw, idx) => {
@@ -352,7 +352,7 @@ export function DebateArenaModal({
                 )}
               </div>
 
-              {/* Short Thesis Advocate Pod */}
+              {/* Bearish Advocate Pod */}
               <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-rose-500/20 pb-3">
                   <div className="flex items-center gap-2">
@@ -361,9 +361,9 @@ export function DebateArenaModal({
                     </span>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-rose-500">
-                        Short Thesis (Bear Case)
+                        Bearish Advocate Case
                       </h3>
-                      <p className="text-[11px] text-steel">Capital Preservation & Stress-Testing</p>
+                      <p className="text-[11px] text-steel">Downside Prosecutor & Stress-Tester</p>
                     </div>
                   </div>
                   <span className="text-xs font-mono-data font-bold text-rose-500 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
@@ -442,10 +442,10 @@ export function DebateArenaModal({
             <div className="space-y-4 max-w-4xl mx-auto">
               <div className="p-4 rounded-xl border border-line bg-paper/30">
                 <h4 className="text-xs font-black uppercase tracking-wider text-ink mb-1">
-                  Deliberation & Cross-Examination Record
+                  Adversarial Exchange Transcript
                 </h4>
                 <p className="text-xs text-steel">
-                  Each thesis is tested directly against counterarguments before the Investment Committee issues the ruling.
+                  Each advocate directly answers the opposing arguments before the Independent Judge issues the verdict.
                 </p>
               </div>
 
@@ -459,7 +459,7 @@ export function DebateArenaModal({
                     <div className="flex-1 bg-emerald-500/5 border border-emerald-500/25 p-4 rounded-2xl rounded-tl-sm space-y-1.5">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-black uppercase tracking-wider text-emerald-500">
-                          Long Thesis Rebuttal
+                          Bullish Advocate Rebuttal
                         </span>
                         <span className="text-[10px] text-steel">Round {round.round_number}</span>
                       </div>
@@ -477,7 +477,7 @@ export function DebateArenaModal({
                     <div className="flex-1 bg-rose-500/5 border border-rose-500/25 p-4 rounded-2xl rounded-tr-sm space-y-1.5 text-right">
                       <div className="flex items-center justify-between text-[11px] flex-row-reverse">
                         <span className="font-black uppercase tracking-wider text-rose-500">
-                          Short Thesis Rebuttal
+                          Bearish Advocate Reply
                         </span>
                         <span className="text-[10px] text-steel">Round {round.round_number}</span>
                       </div>
@@ -501,19 +501,19 @@ export function DebateArenaModal({
                     </span>
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-ink">
-                        Investment Committee Adjudication
+                        Independent Judge Adjudication
                       </h3>
-                      <p className="text-[11px] text-steel">Committee Chair Synthesis & Ruling</p>
+                      <p className="text-[11px] text-steel">Chief Investment Judge Ruling</p>
                     </div>
                   </div>
                   <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${verdictStyles}`}>
-                    Committee Ruling: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict}
+                    Verdict: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict}
                   </span>
                 </div>
 
                 <div className="bg-paper/60 border border-line p-4 rounded-xl">
                   <span className="text-[10px] font-black uppercase tracking-wider text-steel block mb-1">
-                    Executive Adjudication
+                    Executive Ruling
                   </span>
                   <p className="text-xs font-semibold text-ink leading-relaxed">
                     {debate.summary}

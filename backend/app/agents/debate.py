@@ -1,7 +1,7 @@
-"""Second-stage stock analysis: evidence-grounded Long vs Short thesis deliberation and committee adjudication.
+"""Second-stage stock analysis: evidence-grounded Bull vs Bear debate and Judge.
 
-The Investment Committee Deliberation consumes the completed Specialist Research Committee report rather than fetching data again.
-CrewAI powers the Long Thesis Advocate, Short Thesis Advocate, and Committee Chair when configured; a transparent
+The Debate Arena consumes the completed Specialist Research Committee report rather than fetching data again.
+CrewAI powers the Bull, Bear, and Judge when configured; a transparent
 deterministic fallback keeps the endpoint available and identifies its mode.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class DebateSystem:
-    """Run Long and Short thesis advocates followed by an independent committee adjudicator."""
+    """Run bullish and bearish advocates followed by an independent judge."""
 
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -28,7 +28,7 @@ class DebateSystem:
             try:
                 return self._run_crewai(analysis)
             except Exception:
-                logger.exception("Investment Committee LLM deliberation failed for %s; using fallback", analysis.symbol)
+                logger.exception("Debate Arena LLM debate failed for %s; using fallback", analysis.symbol)
         return self._deterministic_debate(analysis)
 
     def _run_crewai(self, analysis: CompanyAnalysis) -> DebateReport:
@@ -58,25 +58,25 @@ class DebateSystem:
         llm = resolve_llm(self.settings)
 
         bull = Agent(
-            role="Long Thesis Advocate",
-            goal="Construct the strongest evidence-grounded upside thesis and answer bearish objections.",
-            backstory="A disciplined buy-side equity analyst who builds the institutional long thesis without inventing facts.",
+            role="Bullish Equity Analyst",
+            goal="Construct the strongest fair, evidence-grounded upside case and answer bearish objections.",
+            backstory="A disciplined analyst who argues the bull case without inventing facts and states what invalidates it.",
             llm=llm, verbose=False, allow_delegation=False, max_iter=4,
         )
         bear = Agent(
-            role="Short Thesis Advocate",
-            goal="Stress-test the thesis, challenge valuation and market risks, and identify downside vulnerabilities.",
-            backstory="A skeptical risk-focused equity analyst focused on capital preservation, evaluating the same evidence base.",
+            role="Bearish Equity Analyst",
+            goal="Stress-test the thesis, identify downside risks, and challenge unsupported assumptions.",
+            backstory="A skeptical analyst focused on capital preservation, using exactly the same evidence as the bull.",
             llm=llm, verbose=False, allow_delegation=False, max_iter=4,
         )
         judge = Agent(
-            role="Investment Committee Chair & Adjudicator",
-            goal="Adjudicate the Long vs Short theses against the evidence and issue a decisive institutional verdict.",
-            backstory="Authoritative chair of the investment committee. Prioritizes evidence quality, valuation margins of safety, and risk limits to render an objective ruling.",
+            role="Independent Investment Judge",
+            goal="Adjudicate opposing cases against evidence and return a cautious verdict.",
+            backstory="Independent of both advocates. Prioritize evidence quality, contradictions, risks, and gaps; use Neutral when uncertain.",
             llm=llm, verbose=False, allow_delegation=False, max_iter=4,
         )
         bull_task = Task(
-            description=(f"{shared}\n\nBuild the institutional long thesis for {analysis.company_name} ({analysis.symbol}). "
+            description=(f"{shared}\n\nBuild the bullish case for {analysis.company_name} ({analysis.symbol}). "
                 "Return raw JSON with: thesis (string summary of bull case), "
                 "key_arguments (array of plain text strings, each clearly stating an argument and its supporting evidence without nested dicts), "
                 "evidence_refs (array of short agent/metric references), "
@@ -86,7 +86,7 @@ class DebateSystem:
             agent=bull,
         )
         bear_task = Task(
-            description=(f"{shared}\n\nBuild the institutional short thesis for {analysis.company_name} ({analysis.symbol}). "
+            description=(f"{shared}\n\nBuild the bearish case for {analysis.company_name} ({analysis.symbol}). "
                 "Stress-test the Specialist Committee recommendation; identify risks, weak assumptions, and missing evidence. "
                 "Return raw JSON with: thesis (string summary of bear case), "
                 "key_arguments (array of plain text strings, each stating a downside argument and evidence without nested dicts), "
@@ -97,8 +97,8 @@ class DebateSystem:
             agent=bear,
             context=[bull_task],
         )
-        # Institutional cross-examination: each advocate reviews opposing arguments
-        # and answers them before the Committee Chair deliberates.
+        # A real adversarial exchange: each advocate sees the prior case and
+        # must answer it before the Judge receives the full deliberation.
         bull_rebuttal_task = Task(
             description=(
                 f"{shared}\n\nYou have now reviewed the initial bullish and bearish arguments in task context. "
@@ -122,11 +122,8 @@ class DebateSystem:
             context=[bull_task, bear_task, bull_rebuttal_task],
         )
         judge_task = Task(
-            description=(f"{shared}\n\nAs Committee Chair, impartially adjudicate both the Long Thesis and Short Thesis against the original evidence.\n"
-                "Verdict must be exactly 'Buy', 'Sell', or 'Neutral'.\n"
-                "- Issue 'Buy' when growth catalysts, intrinsic value upside, and technical alignment outweigh downside risks (and risk_score < 75).\n"
-                "- Issue 'Sell' when valuation is clearly stretched, technical deterioration is evident, or risks outweigh catalysts.\n"
-                "- Issue 'Neutral' when evidence is evenly divided, upside is capped by elevated uncertainty, or thesis lacks immediate confirmation.\n"
+            description=(f"{shared}\n\nJudge both preceding arguments against the original evidence. Verdict must be "
+                "exactly Buy, Sell, or Neutral. Choose Neutral for incomplete, contradictory, synthetic, or balanced evidence. "
                 "Do not simply average confidence. Explain which evidence matters and why. Return raw JSON with verdict, "
                 "confidence (0..1), summary, judge_reasoning (array of plain text strings), bullish_response, bearish_response, evidence_gaps (array)."),
             expected_output='{"verdict":"Buy|Sell|Neutral","confidence":0.0,"summary":"...","judge_reasoning":[],"bullish_response":"...","bearish_response":"...","evidence_gaps":[]}',
@@ -139,16 +136,16 @@ class DebateSystem:
         bull_rebuttal = _parse_json_object(getattr(getattr(bull_rebuttal_task, "output", None), "raw", "")) or {}
         bear_rebuttal = _parse_json_object(getattr(getattr(bear_rebuttal_task, "output", None), "raw", "")) or {}
         if not judged or not bull_data or not bear_data:
-            raise ValueError("CrewAI deliberation returned incomplete JSON.")
+            raise ValueError("CrewAI debate returned incomplete JSON.")
         verdict = str(judged.get("verdict", "Neutral"))
         if verdict not in {"Buy", "Sell", "Neutral"}:
             verdict = "Neutral"
         return DebateReport(
             verdict=verdict, confidence=_bounded_float(judged.get("confidence"), 0.5),
-            summary=_safe_str(judged.get("summary"), "The Investment Committee compared the Long and Short theses against the evidence."),
+            summary=_safe_str(judged.get("summary"), "The judge compared both cases against the evidence."),
             judge_reasoning=_string_list(judged.get("judge_reasoning"), 8),
-            bull_case=_argument("Long Thesis Advocate", "bullish", bull_data),
-            bear_case=_argument("Short Thesis Advocate", "bearish", bear_data),
+            bull_case=_argument("Bullish Agent", "bullish", bull_data),
+            bear_case=_argument("Bearish Agent", "bearish", bear_data),
             debate_rounds=[DebateRound(round_number=1,
                 bullish_response=_safe_str(
                     bull_rebuttal.get("response"),
@@ -176,61 +173,42 @@ class DebateSystem:
             else:
                 try:
                     value = float(score); item = f"{label}: score {value:.1f}/100; {finding.summary}"
-                    if value >= 58:
-                        positive.append(item); bull_refs.append(label)
-                    elif value <= 42:
-                        negative.append(item); bear_refs.append(label)
-                    else:
-                        gaps.append(f"{label} is mixed/neutral (score {value:.1f}/100).")
-                except (TypeError, ValueError):
-                    gaps.append(f"{label} produced a non-numeric score.")
+                    if value >= 60: positive.append(item); bull_refs.append(label)
+                    elif value <= 40: negative.append(item); bear_refs.append(label)
+                    else: gaps.append(f"{label} is mixed/neutral (score {value:.1f}/100).")
+                except (TypeError, ValueError): gaps.append(f"{label} produced a non-numeric score.")
             for signal in finding.signals[:3]:
                 low = signal.lower()
-                if any(w in low for w in ("strong", "bullish", "healthy", "growth", "reasonable", "positive", "uptrend", "buy", "outperform", "undervalued", "low risk", "expanding", "opportunity", "robust")):
+                if any(w in low for w in ("strong", "bullish", "healthy", "growth", "reasonable", "positive", "uptrend", "buy")):
                     positive.append(f"{label}: {signal}"); bull_refs.append(label)
-                # Specific negative tokens: avoid matching bare "risk" which flags every risk finding
-                if any(w in low for w in ("high risk", "severe risk", "elevated risk", "weak", "bearish", "negative", "downtrend", "overvalued", "sell", "loss", "decline", "breakdown", "downgrade", "deteriorat", "headwind")):
+                if any(w in low for w in ("risk", "weak", "bearish", "negative", "elevated", "downtrend", "overvalued", "sell", "loss", "decline")):
                     negative.append(f"{label}: {signal}"); bear_refs.append(label)
-        if not analysis.news: gaps.append("No news headlines were available for committee deliberation.")
+        if not analysis.news: gaps.append("No news headlines were available to the Debate Arena.")
         for item in analysis.news[:8]:
             if not item.summary and not item.url: gaps.append(f"Headline has limited verifiable context: {item.title}")
-        if analysis.risk_score <= 35:
-            positive.append(f"Risk gate: Low measured risk ({analysis.risk_score}/100) supports capital preservation.")
-            bull_refs.append("Risk Analysis Agent")
-        elif analysis.risk_score >= 78:
-            negative.append(f"Risk gate: Committee risk score is elevated ({analysis.risk_score}/100).")
-            bear_refs.append("Risk Analysis Agent")
+        if analysis.risk_score >= 78:
+            negative.append(f"Risk gate: Committee risk score is elevated ({analysis.risk_score}/100)."); bear_refs.append("Risk Analysis Agent")
         if not positive: gaps.append("No clearly favorable specialist evidence was detected.")
         if not negative: gaps.append("No clearly unfavorable specialist evidence was detected.")
         balance = min(len(positive), 12) - min(len(negative), 12)
-        if analysis.risk_score >= 82:
-            verdict = "Sell" if balance < 0 else "Neutral"
-            reason = "Elevated risk is a material constraint; a Buy verdict is prohibited."
-        elif analysis.recommendation == "Buy" and analysis.risk_score < 75 and balance >= 0:
-            verdict = "Buy"
-            reason = "Multiple favorable signals corroborate the Committee Buy recommendation with risk below high-risk threshold."
-        elif analysis.recommendation == "Sell" and (balance <= 0 or analysis.risk_score >= 75):
-            verdict = "Sell"
-            reason = "Multiple unfavorable signals corroborate the Committee Sell recommendation."
-        elif balance >= 3 and analysis.risk_score < 70:
-            verdict = "Buy"
-            reason = "Preponderance of favorable specialist signals supports a Buy stance."
-        elif balance <= -3:
-            verdict = "Sell"
-            reason = "Preponderance of negative specialist signals indicates downside vulnerability."
+        if analysis.risk_score >= 85:
+            verdict = "Sell" if balance < -1 else "Neutral"; reason = "Elevated risk is a material constraint; a Buy verdict is not supported."
+        elif balance >= 2 and analysis.recommendation == "Buy" and analysis.risk_score < 70:
+            verdict = "Buy"; reason = "Multiple favorable signals support the Committee recommendation, with risk below the high-risk gate."
+        elif balance <= -2 and analysis.recommendation == "Sell":
+            verdict = "Sell"; reason = "Multiple unfavorable signals corroborate the Committee recommendation."
         else:
-            verdict = "Neutral"
-            reason = "Evidence is evenly balanced or shows conflicting cross-currents; Neutral (Hold) is the prudent posture."
+            verdict = "Neutral"; reason = "Evidence is mixed or insufficient for a confident deterministic verdict; Neutral is the cautious outcome."
         return DebateReport(
-            verdict=verdict, confidence=0.55 if verdict == "Neutral" else 0.68,
-            summary=f"The Investment Committee compared {len(positive)} favorable and {len(negative)} unfavorable signals from the Specialist Committee. {reason}",
+            verdict=verdict, confidence=0.52 if verdict == "Neutral" else 0.6,
+            summary=f"The Debate Arena compared {len(positive)} favorable and {len(negative)} unfavorable signals from the Specialist Committee. {reason}",
             judge_reasoning=[reason, f"Specialist Committee recommendation: {analysis.recommendation} (confidence {analysis.confidence:.2f}).",
-                f"Risk score: {analysis.risk_score}/100.", "Deterministic evidence triage; no LLM deliberation was run."],
-            bull_case=DebateArgument(agent="Long Thesis Advocate", position="bullish",
+                f"Risk score: {analysis.risk_score}/100.", "Deterministic evidence triage; no LLM debate was run."],
+            bull_case=DebateArgument(agent="Bullish Agent", position="bullish",
                 thesis=positive[0] if positive else "The supplied report does not establish a sufficiently strong bullish case.",
                 key_arguments=_unique(positive, 6), evidence_refs=_unique(bull_refs, 8), counterarguments=_unique(negative, 4),
                 confidence=round(min(0.85, 0.45 + len(positive) * 0.04), 2)),
-            bear_case=DebateArgument(agent="Short Thesis Advocate", position="bearish",
+            bear_case=DebateArgument(agent="Bearish Agent", position="bearish",
                 thesis=negative[0] if negative else "The supplied report does not establish a sufficiently strong bearish case.",
                 key_arguments=_unique(negative, 6), evidence_refs=_unique(bear_refs, 8), counterarguments=_unique(positive, 4),
                 confidence=round(min(0.85, 0.45 + len(negative) * 0.04), 2)),
@@ -244,8 +222,7 @@ class DebateSystem:
     @staticmethod
     def _evidence_payload(analysis: CompanyAnalysis) -> dict[str, Any]:
         return {"symbol": analysis.symbol, "company_name": analysis.company_name,
-            "committee_recommendation": analysis.recommendation, "system1_recommendation": analysis.recommendation,
-            "committee_confidence": analysis.confidence,
+            "committee_recommendation": analysis.recommendation, "committee_confidence": analysis.confidence,
             "risk_score": analysis.risk_score, "target_bias": analysis.target_bias, "thesis": analysis.thesis,
             "action_items": analysis.action_items, "specialist_findings": [x.model_dump(mode="json") for x in analysis.agents],
             "news": [x.model_dump(mode="json") for x in analysis.news], "currency": analysis.currency}

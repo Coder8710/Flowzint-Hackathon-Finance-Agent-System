@@ -181,7 +181,7 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* ── 3. Executive Preview: Investment Committee Deliberation ── */}
+        {/* ── 3. Executive Preview: Investment Debate ── */}
         <div className="rounded-2xl glass-panel border border-line shadow-panel p-6 space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-line pb-4">
             <div className="flex items-center gap-3">
@@ -190,10 +190,10 @@ export default function OverviewPage() {
               </span>
               <div>
                 <h2 className="text-sm font-black uppercase tracking-wider text-ink">
-                  Investment Committee Deliberation · Long vs Short Thesis
+                  Adversarial Debate Arena · Bull vs Bear
                 </h2>
                 <p className="text-[11px] text-steel">
-                  Conviction {Math.round(analysis.confidence * 100)}% · Committee Deliberation · Binding Ruling
+                  Conviction {Math.round(analysis.confidence * 100)}% · Multi-Agent Debate · Committee Ruling
                 </p>
               </div>
             </div>
@@ -206,14 +206,14 @@ export default function OverviewPage() {
                   ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
                   : "border-amber/40 bg-amber/10 text-amber"
               }`}>
-                Committee Ruling: {judgeRuling}
+                Judge: {judgeRuling}
               </span>
               <Link
                 href={`${base}/debate`}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-paper/60 text-xs font-bold text-ink hover:border-mint hover:text-mint transition-all shadow-sm"
               >
                 <Maximize2 className="h-3.5 w-3.5 text-mint" />
-                <span>View Full Deliberation</span>
+                <span>View Full Debate</span>
               </Link>
             </div>
           </div>
@@ -223,13 +223,13 @@ export default function OverviewPage() {
             <div className="flex items-center justify-between text-xs font-bold mb-1.5">
               <span className="flex items-center gap-1.5 text-emerald-500">
                 <TrendingUp className="h-3.5 w-3.5" />
-                Long Thesis ({bullConf}%)
+                Bullish Advocate ({bullConf}%)
               </span>
               <span className="text-[10px] uppercase font-mono-data text-steel">
                 Evidence Conviction Balance
               </span>
               <span className="flex items-center gap-1.5 text-rose-500">
-                Short Thesis ({bearConf}%)
+                Bearish Advocate ({bearConf}%)
                 <TrendingDown className="h-3.5 w-3.5" />
               </span>
             </div>
