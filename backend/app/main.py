@@ -528,14 +528,14 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
 
 @app.post("/debate", response_model=DebateReport)
 async def debate(analysis: CompanyAnalysis) -> DebateReport:
-    """Run the Investment Committee Deliberation on a completed Specialist Committee report without repeating stock data retrieval."""
+    """Run the Debate Arena on a completed Specialist Committee report without repeating stock data retrieval."""
     try:
         return await asyncio.to_thread(debate_system.run, analysis)
     except Exception as exc:
-        logger.exception("Unexpected error during committee deliberation for %s", analysis.symbol)
+        logger.exception("Unexpected error during adversarial debate for %s", analysis.symbol)
         raise HTTPException(
             status_code=500,
-            detail="An unexpected error occurred during committee deliberation. Please try again.",
+            detail="An unexpected error occurred during the adversarial debate. Please try again.",
         ) from exc
 
 

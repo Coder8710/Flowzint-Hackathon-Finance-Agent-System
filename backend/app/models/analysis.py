@@ -33,7 +33,7 @@ class AgentFinding(BaseModel):
 
 
 class DebateArgument(BaseModel):
-    agent: Literal["Bullish Agent", "Bearish Agent", "Long Thesis Advocate", "Short Thesis Advocate"]
+    agent: Literal["Bullish Agent", "Bearish Agent"]
     position: Literal["bullish", "bearish"]
     thesis: str
     key_arguments: list[str] = Field(default_factory=list)
