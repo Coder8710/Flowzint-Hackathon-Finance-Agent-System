@@ -221,6 +221,8 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
   const [showDetailedJudge, setShowDetailedJudge] = useState(false);
   const [isThesisExpanded, setIsThesisExpanded] = useState(false);
   const [expandedThesisIdx, setExpandedThesisIdx] = useState<number | null>(null);
+  const [showAgentDetails, setShowAgentDetails] = useState(false);
+  const [showAllNews, setShowAllNews] = useState(false);
 
   const technical = analysis.agents.find((agent) => agent.agent === "Technical Analysis Agent");
   
@@ -434,7 +436,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
         </div>
       </div>
 
-      {/* Adversarial Debate Arena: bull/bear debate and judge verdict */}
+      {/* Investment Committee Deliberation: long vs short thesis and committee ruling */}
       {debate && (
         <div className="rounded-2xl glass-panel p-6 border border-line space-y-5 relative overflow-hidden">
           {/* Header */}
@@ -445,7 +447,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                   <Activity className="h-4 w-4" />
                 </span>
                 <h3 className="text-sm font-black uppercase tracking-wider text-ink">
-                  Adversarial Debate Arena · Bull vs Bear
+                  Investment Committee Deliberation · Long vs Short Thesis
                 </h3>
               </div>
               <p className="text-[13px] text-steel leading-relaxed max-w-2xl">
@@ -459,10 +461,10 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                   type="button"
                   onClick={() => setIsDebateArenaOpen(true)}
                   className="px-3 py-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-xs font-black uppercase tracking-wider hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 shadow-sm"
-                  title="Open full interactive courtroom arena view"
+                  title="Open full interactive committee deliberation view"
                 >
                   <Maximize2 className="h-3.5 w-3.5" />
-                  <span>Open Debate Arena</span>
+                  <span>View Committee Deliberation</span>
                 </button>
 
                 <span className={`border px-3 py-1.5 rounded-lg text-sm font-black uppercase tracking-wider ${
@@ -472,7 +474,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                       ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
                       : "border-amber-500/30 bg-amber-500/10 text-amber-500"
                 }`}>
-                  Judge: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict}
+                  Committee Ruling: {debate.verdict === "Neutral" ? "Neutral (Hold)" : debate.verdict}
                 </span>
               </div>
 
@@ -481,7 +483,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                   Conviction {Math.round(debate.confidence * 100)}%
                 </span>
                 <span>·</span>
-                <span>{debate.mode === "llm" ? "CrewAI Debate" : "Deterministic Fallback"}</span>
+                <span>{debate.mode === "llm" ? "Committee Deliberation" : "Quantitative Synthesis"}</span>
                 <span>·</span>
                 <span>Committee: {debate.source_recommendation} ({Math.round(debate.source_confidence * 100)}%)</span>
               </div>
@@ -491,13 +493,13 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
           {/* Advocate Columns (Brief by default, expandable) */}
           <div className="grid gap-4 lg:grid-cols-2">
             
-            {/* Bullish Agent Pod */}
+            {/* Long Thesis Pod */}
             <article className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3 border-b border-emerald-500/15 pb-2.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm">🐂</span>
                   <h4 className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    Bullish Agent
+                    Long Thesis (Bull Case)
                   </h4>
                 </div>
                 <span className="text-[10px] font-mono-data font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -596,7 +598,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm">🐻</span>
                   <h4 className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Bearish Agent
+                    Short Thesis (Bear Case)
                   </h4>
                 </div>
                 <span className="text-[10px] font-mono-data font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
@@ -700,7 +702,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black uppercase tracking-wider text-ink flex items-center gap-1.5">
                 <Scale className="h-4 w-4 text-indigo-500" />
-                <span>Judge Agent · Why this verdict?</span>
+                <span>Committee Ruling · Synthesis & Findings</span>
               </h4>
 
               <button
@@ -726,7 +728,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                 {debate.judge_reasoning.length > 1 && (
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-steel block mb-1.5">
-                      Full Legal Deliberation Points
+                      Reasoned Deliberation & Findings
                     </span>
                     <ul className="space-y-2 list-disc pl-4">
                       {debate.judge_reasoning.slice(1).map((item, idx) => (
@@ -924,13 +926,23 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
 
       {/* Row 3: Specialist Intelligence Matrix */}
       <div className="rounded-2xl glass-panel p-6 border border-line">
-        <div className="flex items-center gap-2 mb-5">
-          <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
-            <Activity className="h-4 w-4" />
-          </span>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-ink">
-            Specialist Intelligence Workbench
-          </h3>
+        <div className="flex items-center justify-between gap-2 mb-5">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
+              <Activity className="h-4 w-4" />
+            </span>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-ink">
+              Specialist Intelligence Workbench
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setShowAgentDetails(prev => !prev); }}
+            className="text-[11px] font-bold text-mint hover:underline flex items-center gap-1 px-2.5 py-1 rounded-lg border border-mint/20 bg-mint/5 transition-all"
+          >
+            <span>{showAgentDetails ? "Brief View" : "Show Signals & KPIs"}</span>
+            {showAgentDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-[240px_1fr]">
@@ -950,7 +962,7 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
               return (
                 <button
                   key={agent.agent}
-                  onClick={() => setActiveAgentIndex(index)}
+                  onClick={() => { setActiveAgentIndex(index); setShowAgentDetails(false); }}
                   className={`w-full flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl transition-all border ${
                     isSelected 
                       ? "border-mint/30 bg-mint/5 text-mint font-bold shadow-sm"
@@ -982,36 +994,53 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
                 </div>
               </div>
 
+              {/* Agent summary — always visible */}
               <p className="text-[13px] text-steel/90 leading-relaxed mt-4 bg-paper/20 p-4 border border-line/40 rounded-2xl">
                 {formatCurrencySymbols(selectedAgent.summary, symbol, analysis.currency)}
               </p>
 
-              {selectedAgent.signals.length > 0 && (
-                <div className="mt-5 space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
-                    Telemetry Signals Checklist
-                  </span>
-                  <ul className="grid gap-2">
-                    {selectedAgent.signals.map((signal, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs text-steel leading-relaxed">
-                        <span className="p-0.5 rounded bg-mint/10 text-mint border border-mint/20 mt-0.5 shrink-0">
-                          <CheckCircle className="h-3 w-3" />
-                        </span>
-                        <span className="break-words">
-                          {renderTextWithLinks(formatCurrencySymbols(signal, symbol, analysis.currency))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* Signals & KPIs — hidden by default, revealed on toggle */}
+              {showAgentDetails && (
+                <div className="animate-fade-in">
+                  {selectedAgent.signals.length > 0 && (
+                    <div className="mt-5 space-y-3">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
+                        Telemetry Signals Checklist
+                      </span>
+                      <ul className="grid gap-2">
+                        {selectedAgent.signals.map((signal, idx) => (
+                          <li key={idx} className="flex items-start gap-2.5 text-xs text-steel leading-relaxed">
+                            <span className="p-0.5 rounded bg-mint/10 text-mint border border-mint/20 mt-0.5 shrink-0">
+                              <CheckCircle className="h-3 w-3" />
+                            </span>
+                            <span className="break-words">
+                              {renderTextWithLinks(formatCurrencySymbols(signal, symbol, analysis.currency))}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="mt-6 pt-5 border-t border-line">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-steel block mb-2">
+                      Key Performance Indicators (KPIs)
+                    </span>
+                    {renderAgentTelemetry(selectedAgent)}
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div className="mt-6 pt-5 border-t border-line">
-              <span className="text-[10px] font-black uppercase tracking-wider text-steel block mb-2">
-                Key Performance Indicators (KPIs)
-              </span>
-              {renderAgentTelemetry(selectedAgent)}
+              {/* Prompt to expand if not already open */}
+              {!showAgentDetails && (
+                <button
+                  type="button"
+                  onClick={() => setShowAgentDetails(true)}
+                  className="mt-3 w-full py-2 text-center text-xs font-bold text-steel hover:text-mint transition-colors border border-dashed border-line rounded-xl bg-paper/10"
+                >
+                  {selectedAgent.signals.length > 0 ? `+ ${selectedAgent.signals.length} Telemetry Signals & KPIs (Click to expand)` : "Show KPI Details"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1019,42 +1048,65 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
 
       {/* Row 4: Scanned Catalyst Feeds (Displayed Below Workbench Row) */}
       <div className="rounded-2xl glass-panel p-6 border border-line card-hover">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
-            <Newspaper className="h-4 w-4" />
-          </span>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-ink font-sans">Scanned Catalyst Feeds</h3>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15">
+              <Newspaper className="h-4 w-4" />
+            </span>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-ink font-sans">Scanned Catalyst Feeds</h3>
+          </div>
+          {analysis.news && analysis.news.length > 2 && (
+            <button
+              type="button"
+              onClick={() => setShowAllNews(prev => !prev)}
+              className="text-[11px] font-bold text-mint hover:underline flex items-center gap-1 px-2.5 py-1 rounded-lg border border-mint/20 bg-mint/5 transition-all"
+            >
+              <span>{showAllNews ? "Show Less" : `Show All (${analysis.news.length})`}</span>
+              {showAllNews ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+          )}
         </div>
         {analysis.news && analysis.news.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {analysis.news.slice(0, 4).map((item, idx) => (
-              <a
-                key={`${item.title}-${idx}`}
-                href={item.url && !item.url.includes("news.google.com") ? item.url : "#"}
-                target="_blank"
-                rel="noreferrer"
-                className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
-              >
-                <div className="flex justify-between items-center gap-2 mb-1.5">
-                  <span className="font-mono-data text-[10px] font-black uppercase text-mint tracking-wider bg-mint/5 px-2 py-0.5 rounded border border-mint/10 shrink-0">
-                    {(item.source || "").replace(/tavily/gi, "").trim() || "News"}
-                  </span>
-                  {item.published_at && (
-                    <span className="font-mono-data text-[10px] text-steel/50">
-                      {item.published_at.split("T")[0] || item.published_at}
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              {(showAllNews ? analysis.news : analysis.news.slice(0, 2)).map((item, idx) => (
+                <a
+                  key={`${item.title}-${idx}`}
+                  href={item.url && !item.url.includes("news.google.com") ? item.url : "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-xl bg-paper/30 border border-line p-4 hover:bg-paper/70 hover:border-mint transition-all duration-200"
+                >
+                  <div className="flex justify-between items-center gap-2 mb-1.5">
+                    <span className="font-mono-data text-[10px] font-black uppercase text-mint tracking-wider bg-mint/5 px-2 py-0.5 rounded border border-mint/10 shrink-0">
+                      {(item.source || "").replace(/tavily/gi, "").trim() || "News"}
                     </span>
+                    {item.published_at && (
+                      <span className="font-mono-data text-[10px] text-steel/50">
+                        {item.published_at.split("T")[0] || item.published_at}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-[13px] font-bold text-ink leading-snug hover:text-mint transition-colors line-clamp-2">
+                    {formatCurrencySymbols(item.title, symbol, analysis.currency)}
+                  </h4>
+                  {item.summary && (
+                    <p className="mt-2 line-clamp-2 text-[12px] text-steel/70 leading-relaxed">
+                      {formatCurrencySymbols(item.summary, symbol, analysis.currency)}
+                    </p>
                   )}
-                </div>
-                <h4 className="text-[13px] font-bold text-ink leading-snug hover:text-mint transition-colors line-clamp-2">
-                  {formatCurrencySymbols(item.title, symbol, analysis.currency)}
-                </h4>
-                {item.summary && (
-                  <p className="mt-2 line-clamp-2 text-[12px] text-steel/70 leading-relaxed">
-                    {formatCurrencySymbols(item.summary, symbol, analysis.currency)}
-                  </p>
-                )}
-              </a>
-            ))}
+                </a>
+              ))}
+            </div>
+            {!showAllNews && analysis.news.length > 2 && (
+              <button
+                type="button"
+                onClick={() => setShowAllNews(true)}
+                className="w-full py-2 text-center text-xs font-bold text-steel hover:text-mint transition-colors border border-dashed border-line rounded-xl bg-paper/10"
+              >
+                + {analysis.news.length - 2} More Catalyst Feeds (Click to expand)
+              </button>
+            )}
           </div>
         ) : (
           <div className="text-center py-6 border border-dashed border-line rounded-xl bg-paper/10 text-xs text-steel">

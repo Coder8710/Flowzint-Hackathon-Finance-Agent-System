@@ -268,20 +268,20 @@ export default function DebatePage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-black uppercase tracking-wider text-ink">
-                    Adversarial Debate Arena · Bull vs Bear
+                    Investment Committee Deliberation · Long vs Short Thesis
                   </h1>
                   <span className="font-mono-data text-xs font-bold text-mint bg-mint/10 border border-mint/20 px-2 py-0.5 rounded">
                     {sym}
                   </span>
                 </div>
                 <p className="text-[11px] text-steel mt-0.5">
-                  Adversarial Equity Adjudication · {debate?.mode === "llm" ? "CrewAI LLM Debate" : "Deterministic Fallback"}
+                  Institutional Equity Deliberation · {debate?.mode === "llm" ? "Committee Deliberation (CrewAI)" : "Quantitative Synthesis"}
                 </p>
               </div>
             </div>
 
             <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${verdictStyles}`}>
-              Judge: {verdict === "Neutral" ? "Neutral (Hold)" : verdict} ({judgeConfidence}%)
+              Committee Ruling: {verdict === "Neutral" ? "Neutral (Hold)" : verdict} ({judgeConfidence}%)
             </span>
           </div>
 
@@ -290,13 +290,13 @@ export default function DebatePage() {
             <div className="flex items-center justify-between text-xs font-bold mb-1.5">
               <div className="flex items-center gap-1.5 text-emerald-500">
                 <TrendingUp className="h-4 w-4" />
-                <span>BULLISH ADVOCATE ({bullConfidence}%)</span>
+                <span>LONG THESIS (BULL CASE) ({bullConfidence}%)</span>
               </div>
               <span className="text-[10px] uppercase font-mono-data text-steel">
                 Evidence Conviction Balance
               </span>
               <div className="flex items-center gap-1.5 text-rose-500">
-                <span>BEARISH ADVOCATE ({bearConfidence}%)</span>
+                <span>SHORT THESIS (BEAR CASE) ({bearConfidence}%)</span>
                 <TrendingDown className="h-4 w-4" />
               </div>
             </div>
@@ -524,7 +524,7 @@ export default function DebatePage() {
                         </span>
                       </div>
                       <span className="text-[10px] font-mono-data uppercase text-steel">
-                        Adversarial Adjudication
+                        Committee Adjudication
                       </span>
                     </div>
 
@@ -533,7 +533,7 @@ export default function DebatePage() {
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2">
                         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-500">
                           <TrendingUp className="h-3.5 w-3.5" />
-                          <span>Bullish Rebuttal</span>
+                          <span>Long Thesis Rebuttal</span>
                         </div>
                         <p className="text-xs text-ink leading-relaxed">
                           {formatCurrencySymbols(rnd.bullish_response, sym, analysis.currency)}
@@ -544,7 +544,7 @@ export default function DebatePage() {
                       <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-2">
                         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-rose-500">
                           <TrendingDown className="h-3.5 w-3.5" />
-                          <span>Bearish Counter</span>
+                          <span>Short Thesis Counter</span>
                         </div>
                         <p className="text-xs text-ink leading-relaxed">
                           {formatCurrencySymbols(rnd.bearish_response, sym, analysis.currency)}

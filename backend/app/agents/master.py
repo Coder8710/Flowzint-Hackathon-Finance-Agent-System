@@ -75,7 +75,7 @@ class MasterAgent:
         )
         agents = [fundamental, technical, news, sentiment, risk, portfolio]
         composite = _weighted_score(agents)
-        recommendation = "Buy" if composite >= 64 and risk_score < 78 else "Sell" if composite <= 42 else "Hold"
+        recommendation = "Buy" if composite >= 56 and risk_score < 78 else "Sell" if composite <= 44 or (risk_score >= 80 and composite < 55) else "Hold"
         target_bias = _bias_from_score(composite)
         thesis = _top_thesis(agents)
         action_items = _action_items(symbol, recommendation, risk_score, agents)
@@ -196,16 +196,24 @@ class MasterAgent:
             news=news_items,
             currency=snapshot.currency,
         )
-        # The Debate Arena consumes the complete Specialist Committee report as evidence. Its Judge
-        # verdict becomes the final recommendation while the Committee's recommendation
-        # and confidence remain recorded inside analysis.debate for auditability.
+        # The Investment Committee Deliberation cross-examines the complete Specialist Committee report as evidence.
         analysis.debate = await asyncio.to_thread(self.debate_system.run, analysis)
-        analysis.recommendation = {
-            "Buy": "Buy",
-            "Sell": "Sell",
-            "Neutral": "Hold",
-        }[analysis.debate.verdict]
-        analysis.confidence = analysis.debate.confidence
+        if analysis.debate and analysis.debate.verdict:
+            if analysis.debate.verdict == "Buy":
+                analysis.recommendation = "Buy" if analysis.risk_score < 78 else "Hold"
+            elif analysis.debate.verdict == "Sell":
+                analysis.recommendation = "Sell"
+            elif analysis.debate.verdict == "Neutral":
+                # Respect committee recommendation when supported by evidence and risk gate
+                if analysis.recommendation == "Buy" and analysis.risk_score >= 75:
+                    analysis.recommendation = "Hold"
+                elif analysis.recommendation == "Sell" and composite >= 56:
+                    analysis.recommendation = "Hold"
+                # Otherwise, keep the committee's recommendation (Buy / Sell / Hold)
+
+            # Blend confidence between specialist findings and cross-examination
+            if analysis.debate.confidence:
+                analysis.confidence = round(min(0.95, max(0.45, (analysis.confidence + analysis.debate.confidence) / 2.0)), 2)
         return analysis
 
 

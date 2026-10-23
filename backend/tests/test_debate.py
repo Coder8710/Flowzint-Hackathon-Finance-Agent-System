@@ -34,8 +34,8 @@ class DebateSystemTests(unittest.TestCase):
         self.assertEqual(report.source_recommendation, "Hold")
         self.assertGreaterEqual(report.confidence, 0)
         self.assertLessEqual(report.confidence, 1)
-        self.assertEqual(report.bull_case.agent, "Bullish Agent")
-        self.assertEqual(report.bear_case.agent, "Bearish Agent")
+        self.assertEqual(report.bull_case.agent, "Long Thesis Advocate")
+        self.assertEqual(report.bear_case.agent, "Short Thesis Advocate")
 
     def test_high_risk_prevents_automatic_buy_verdict(self):
         agents = [

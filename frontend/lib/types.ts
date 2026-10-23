@@ -24,7 +24,7 @@ export type AgentFinding = {
 };
 
 export type DebateArgument = {
-  agent: "Bullish Agent" | "Bearish Agent";
+  agent: "Bullish Agent" | "Bearish Agent" | "Long Thesis Advocate" | "Short Thesis Advocate";
   position: "bullish" | "bearish";
   thesis: string;
   key_arguments: string[];
