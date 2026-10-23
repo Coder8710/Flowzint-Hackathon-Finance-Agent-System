@@ -1,38 +1,35 @@
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
-import { 
-  Activity, 
-  BarChart3, 
-  Brain, 
+import React, { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Activity,
+  BarChart3,
+  Brain,
   Briefcase,
-  Loader2, 
-  Newspaper, 
-  Search, 
-  Shield, 
-  SlidersHorizontal, 
-  TrendingUp, 
-  Zap, 
-  Sparkles,
-  Sun,
-  Moon,
   HelpCircle,
-  X
+  Loader2,
+  Newspaper,
+  Search,
+  Shield,
+  SlidersHorizontal,
+  TrendingUp,
+  X,
+  Zap,
 } from "lucide-react";
-import { analyzeStock } from "@/lib/api";
-import { AnalysisResponse } from "@/lib/types";
-import { AnalysisReport } from "@/components/AnalysisReport";
+import { useAnalysis } from "@/components/AnalysisContext";
+import { AppShell } from "@/components/AppShell";
 import { PortfolioContextGuide } from "@/components/PortfolioContextGuide";
-import { formatCurrencySymbols } from "@/lib/currency";
-import { filterCompaniesLocal, addCompaniesToPool } from "../lib/companies";
+import { filterCompaniesLocal, addCompaniesToPool } from "@/lib/companies";
 
+// Highlight matched search text
 function HighlightedText({ text, highlight }: { text: string; highlight: string }) {
   if (!highlight.trim()) return <span>{text}</span>;
-
   const lowerText = text.toLowerCase();
   const lowerHighlight = highlight.toLowerCase();
-
   const index = lowerText.indexOf(lowerHighlight);
+
   if (index !== -1) {
     const before = text.substring(0, index);
     const match = text.substring(index, index + highlight.length);
@@ -45,28 +42,10 @@ function HighlightedText({ text, highlight }: { text: string; highlight: string 
       </span>
     );
   }
-
-  // Fuzzy match character-by-character highlighting fallback
-  const parts: React.ReactNode[] = [];
-  let queryIdx = 0;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (queryIdx < highlight.length && char.toLowerCase() === highlight[queryIdx].toLowerCase()) {
-      parts.push(
-        <span key={i} className="text-mint font-extrabold bg-mint/10 px-0.5 rounded">
-          {char}
-        </span>
-      );
-      queryIdx++;
-    } else {
-      parts.push(<span key={i}>{char}</span>);
-    }
-  }
-  return <span>{parts}</span>;
+  return <span>{text}</span>;
 }
 
-
-// Quick-pick company reference chips shown below the search bar
+// Quick-select company chips
 const quickCompanies = [
   { name: "NVIDIA",   symbol: "NVDA",  exchange: "NASDAQ" },
   { name: "Apple",    symbol: "AAPL",  exchange: "NASDAQ" },
@@ -82,40 +61,59 @@ const agentSteps = [
   { name: "Technical Analysis Agent", icon: TrendingUp, desc: "Reviewing price trends, momentum, and chart patterns..." },
   { name: "Sentiment Analysis Agent", icon: Brain, desc: "Measuring public mood, social buzz, and investor sentiment..." },
   { name: "Risk Analysis Agent", icon: Shield, desc: "Assessing risk level, volatility, and potential downsides..." },
-  { name: "Portfolio Advisor", icon: Briefcase, desc: "Reviewing how this fits your portfolio and investment goals..." },
+  { name: "Portfolio Advisor Agent", icon: Briefcase, desc: "Reviewing how this fits your portfolio and investment goals..." },
   { name: "Final Verdict Coordinator", icon: Activity, desc: "Combining all findings into a clear investment recommendation..." },
 ];
 
 export default function Home() {
-  const [query, setQuery] = useState("Is Suzlon Energy a good buy?");
+  const { runAnalysis, loading, error, result } = useAnalysis();
+  const router = useRouter();
+
+  const [query, setQuery] = useState("Is Apple a good long-term investment?");
   const [riskTolerance, setRiskTolerance] = useState<"low" | "medium" | "high">("medium");
   const [horizon, setHorizon] = useState<"short" | "medium" | "long">("medium");
   const [portfolioContext, setPortfolioContext] = useState("");
-  const [result, setResult] = useState<AnalysisResponse | null>(null);
-  const [pendingResult, setPendingResult] = useState<AnalysisResponse | null>(null); // holds result until pipeline animation finishes
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [activeAgent, setActiveAgent] = useState(0);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
+  // Search & autocomplete
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [selectedCompany, setSelectedCompany] = useState<{ name: string; symbol: string; fullSymbol: string; exchange: string } | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<{
+    name: string;
+    symbol: string;
+    fullSymbol: string;
+    exchange: string;
+  } | null>({
+    name: "Apple Inc.",
+    symbol: "AAPL",
+    fullSymbol: "AAPL",
+    exchange: "NASDAQ",
+  });
 
-  const symbols = useMemo(() => {
-    if (!result) return "IDLE";
-    return result.symbols.map(s => s.split(".")[0]).join(" / ");
-  }, [result]);
+  // Redirect to analysis page when result arrives
+  useEffect(() => {
+    if (result && !loading) {
+      const sym = result.analyses[0]?.symbol?.split(".")[0];
+      if (sym) {
+        router.push(`/analysis/${sym}`);
+      }
+    }
+  }, [result, loading, router]);
 
-  // Display label for header badge: prefer company name over raw ticker
-  const headerLabel = useMemo(() => {
-    if (!result) return "IDLE";
-    if (selectedCompany) return selectedCompany.name;
-    return result.analyses[0]?.company_name || symbols;
-  }, [result, selectedCompany, symbols]);
+  // Simulate agent pipeline ticker during loading
+  useEffect(() => {
+    if (!loading) {
+      setActiveAgent(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setActiveAgent((prev) => (prev < agentSteps.length - 1 ? prev + 1 : prev));
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // Click outside to close autocomplete
   useEffect(() => {
@@ -128,7 +126,7 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Debounced autocomplete search (hybrid local search + backend fetching)
+  // Debounced autocomplete search
   useEffect(() => {
     let active = true;
     const trimmedVal = searchVal.trim();
@@ -138,40 +136,27 @@ export default function Home() {
       return;
     }
 
-    // 1. Immediately filter locally from our pre-indexed pools (fast, sub-100ms path)
     const localMatches = filterCompaniesLocal(trimmedVal);
     setSuggestions(localMatches);
-    if (localMatches.length > 0) {
-      setSearchOpen(true);
-    }
+    if (localMatches.length > 0) setSearchOpen(true);
     setActiveIndex(-1);
 
-    // 2. Set search loading state and trigger backend fetch for any other matching companies
     setSearchLoading(true);
     const delayDebounceFn = setTimeout(async () => {
       try {
         const { searchCompanies } = await import("@/lib/api");
         const backendMatches = await searchCompanies(trimmedVal);
-        
         if (!active) return;
-
-        // Add new matches to our local index pool
         addCompaniesToPool(backendMatches);
-        
-        // Re-run local filter with the enriched index to ensure consistent ranking and matching
         const updatedList = filterCompaniesLocal(trimmedVal);
         setSuggestions(updatedList);
-        if (updatedList.length > 0) {
-          setSearchOpen(true);
-        }
+        if (updatedList.length > 0) setSearchOpen(true);
       } catch (err) {
         console.error("Backend company search error:", err);
       } finally {
-        if (active) {
-          setSearchLoading(false);
-        }
+        if (active) setSearchLoading(false);
       }
-    }, 180); // Debounce by 180ms to avoid spamming the backend API
+    }, 180);
 
     return () => {
       active = false;
@@ -185,523 +170,441 @@ export default function Home() {
     setSuggestions([]);
     setSearchOpen(false);
     setActiveIndex(-1);
-    // Store both the display symbol (stripped) and full ticker (with .NS etc.) for backend
     setSelectedCompany({
       name: suggestion.name,
       symbol: suggestion.symbol.split(".")[0],
-      fullSymbol: suggestion.symbol,  // full ticker e.g. APOLLOHOSP.NS
+      fullSymbol: suggestion.symbol,
       exchange: suggestion.exchange,
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!searchOpen) return;
-
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+      setActiveIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-    } else if (e.key === "Enter") {
-      if (activeIndex >= 0 && activeIndex < suggestions.length) {
-        e.preventDefault();
-        selectSuggestion(suggestions[activeIndex]);
-      }
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[activeIndex]);
     } else if (e.key === "Escape") {
       e.preventDefault();
       setSearchOpen(false);
     }
   };
 
-  // Sync theme setup on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    const currentTheme = saved || "dark";
-    setTheme(currentTheme);
-    if (currentTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
-
-  // Simulate agent progress during loading — keep cycling until all 7 agents are shown
-  useEffect(() => {
-    if (!loading) {
-      return;
-    }
-    setActiveAgent(0);
-    const interval = setInterval(() => {
-      setActiveAgent((prev) => {
-        if (prev < agentSteps.length - 1) return prev + 1;
-        // All agents done — if we have a pending result waiting, flush it now
-        return prev;
-      });
-    }, 3000); // 3s per agent — 7 agents = 21s coverage
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  // When the pipeline reaches the last agent AND we have a pending result, show it
-  useEffect(() => {
-    if (activeAgent >= agentSteps.length - 1 && pendingResult) {
-      // Small delay so user sees the final agent complete before results appear
-      const t = setTimeout(() => {
-        setResult(pendingResult);
-        setPendingResult(null);
-        setLoading(false);
-        setSearchLoading(false);
-      }, 1200);
-      return () => clearTimeout(t);
-    }
-  }, [activeAgent, pendingResult]);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedCompany) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
-    setPendingResult(null);
-    setActiveAgent(0);
-    setSearchLoading(false);
-    try {
-      const response = await analyzeStock({
-        query,
-        ...(selectedCompany && {
-          symbol: selectedCompany.fullSymbol,
-          company_name: selectedCompany.name,
-        }),
-        risk_tolerance: riskTolerance,
-        horizon,
-        portfolio_context: portfolioContext || undefined
-      });
-      // Buffer the result — the pipeline useEffect will flush it when all agents are shown
-      setPendingResult(response);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to run agent pipeline analysis.");
-      setLoading(false);
-      setSearchLoading(false);
-    }
-    // NOTE: setLoading(false) is intentionally NOT in finally — it's handled by the pipeline effect
+    await runAnalysis({
+      query,
+      symbol: selectedCompany.fullSymbol,
+      company_name: selectedCompany.name,
+      risk_tolerance: riskTolerance,
+      horizon,
+      portfolio_context: portfolioContext || undefined,
+    });
   }
 
-
   return (
-    <main className="min-h-screen pb-12 transition-colors duration-200">
-      {/* Premium Header */}
-      <header className="border-b border-line bg-paper/65 backdrop-blur-md sticky top-0 z-50 animate-fade-in">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-black text-mint tracking-[0.18em] uppercase">Stockmaster.ai</p>
-            </div>
-            <h1 className="break-words text-xl font-extrabold tracking-tight text-ink mt-0.5 font-sans">
-              Your AI Investment Research Partner
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-3 self-end lg:self-auto">
-            {/* Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-paper text-ink transition-all hover:bg-line/40 active:scale-95 shadow-sm"
-              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4 text-amber" />
-              ) : (
-                <Moon className="h-4 w-4 text-indigo-500" />
-              )}
-            </button>
+    <AppShell>
+      <div className="py-2">
+        {loading ? (
+          /* ── Loading Mode: Agent Pipeline Tracker ── */
+          <div className="flex flex-col items-center justify-center min-h-[520px] animate-fade-in p-6">
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-mint">
+              CrewAI Financial Intelligence Pipeline
+            </span>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-ink">
+              Orchestrating Sub-Agents
+            </h2>
+            <p className="mt-2 max-w-sm text-center text-xs text-steel leading-relaxed">
+              Synthesizing market telemetry for{" "}
+              <span className="text-mint font-bold">{selectedCompany?.name || query}</span> across 6 analytical vectors.
+            </p>
 
-            {headerLabel !== "IDLE" && (
-              <div className="flex h-9 items-center border border-line bg-paper px-3.5 text-xs font-bold text-steel rounded-lg max-w-[220px]">
-                <span className="text-mint font-black min-w-0 truncate">{headerLabel}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+            {/* Stepper Display */}
+            <div className="mt-8 grid gap-2.5 w-full max-w-md">
+              {agentSteps.map((step, index) => {
+                const Icon = step.icon;
+                const isActive = index === activeAgent;
+                const isDone = index < activeAgent;
 
-      {/* Main Grid Section */}
-      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[400px_1fr]">
-        
-        {/* Left Side: Control deck Form */}
-        <aside>
-          <form onSubmit={submit} className="rounded-2xl glass-panel p-6 shadow-panel border border-line space-y-5 animate-fade-in-up">
-            <div className="flex items-center gap-2 mb-2 pb-3 border-b border-line">
-              <SlidersHorizontal className="h-4 w-4 text-mint" aria-hidden />
-              <h2 className="text-sm font-black uppercase tracking-wider text-ink">Research Settings</h2>
-            </div>
-
-            {/* Autocomplete Company Search */}
-            <div className="relative relative-autocomplete">
-              <label className="block text-xs font-bold uppercase tracking-wider text-steel" htmlFor="company-search">
-                Quick Company Search
-              </label>
-              <div className="relative mt-2 flex items-center">
-                <input
-                  id="company-search"
-                  type="text"
-                  value={searchVal}
-                  onChange={(event) => { setSearchVal(event.target.value); setSearchOpen(true); if (event.target.value.trim()) setSelectedCompany(null); }}
-                  onFocus={() => { if (searchVal.trim().length > 0) setSearchOpen(true); }}
-                  onKeyDown={handleKeyDown}
-                  className="h-10 w-full border border-line bg-terminalBg/40 pl-9 pr-10 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint placeholder-steel/45"
-                  placeholder="Type company name (e.g. Cian Agro, Apple...)"
-                  autoComplete="off"
-                />
-                <Search className="absolute left-3 h-3.5 w-3.5 text-steel/50" />
-                {searchLoading && (
-                  <Loader2 className="absolute right-3 h-3.5 w-3.5 animate-spin text-mint" />
-                )}
-              </div>
-
-              {/* Selected company chip */}
-              {selectedCompany && (
-                <div className="mt-2 flex items-center gap-2 animate-fade-in">
-                  <div className="flex items-center gap-2 bg-mint/8 border border-mint/20 rounded-lg px-3 py-2 flex-1 min-w-0">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-mint/15 border border-mint/25">
-                      <span className="text-[9px] font-black font-mono-data text-mint">{selectedCompany.symbol.slice(0, 3)}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-ink truncate">{selectedCompany.name}</p>
-                      <p className="text-[10px] font-mono-data text-steel/60">{selectedCompany.symbol} · {selectedCompany.exchange}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedCompany(null); setQuery(""); }}
-                    className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-line text-steel/50 hover:border-berry/40 hover:text-berry transition-colors"
-                    title="Clear selection"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-
-              {/* Suggestions Dropdown — theme-aware colors for light/dark mode */}
-              {searchOpen && searchVal.trim().length > 0 && (
-                <div className="absolute left-0 right-0 z-[9999] mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-paper backdrop-blur-md p-1 shadow-2xl animate-fade-in divide-y divide-line/20">
-                  {suggestions.length > 0 ? (
-                    suggestions.map((suggestion, index) => (
-                      <button
-                        key={suggestion.symbol}
-                        type="button"
-                        onMouseEnter={() => setActiveIndex(index)}
-                        onMouseDown={(e) => { e.preventDefault(); selectSuggestion(suggestion); }}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-xs rounded-lg transition-colors group ${
-                          index === activeIndex
-                            ? "bg-mint/10 text-mint"
-                            : "text-steel hover:bg-mint/5 hover:text-mint"
-                        }`}
-                      >
-                        <div className="min-w-0 pr-2">
-                          <p className={`font-bold truncate group-hover:text-mint transition-colors ${
-                            index === activeIndex ? "text-mint" : "text-ink"
-                          }`}>
-                            <HighlightedText text={suggestion.name} highlight={searchVal} />
-                          </p>
-                          <p className={`text-[10px] font-mono-data mt-0.5 ${
-                            index === activeIndex ? "text-mint/70" : "text-steel/50"
-                          }`}>
-                            <HighlightedText text={suggestion.symbol.split(".")[0]} highlight={searchVal} />
-                          </p>
-                        </div>
-                        <span className={`shrink-0 font-mono-data font-black text-[9px] uppercase tracking-widest border px-1.5 py-0.5 rounded ${
-                          index === activeIndex
-                            ? "bg-mint/20 border-mint/30 text-mint"
-                            : "bg-line/20 border-line text-steel/70"
-                        }`}>
-                          {suggestion.exchange}
-                        </span>
-                      </button>
-                    ))
-                  ) : !searchLoading ? (
-                    <div className="px-4 py-6 text-center text-xs text-steel/50">
-                      <HelpCircle className="mx-auto h-6 w-6 text-steel/30 mb-2 animate-pulse" />
-                      No results found for &ldquo;<span className="text-mint font-bold">{searchVal}</span>&rdquo;
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-
-
-            {/* Quick Company Reference Chips */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-steel/50 mb-2">Quick Select</p>
-              <div className="flex flex-wrap gap-1.5">
-                {quickCompanies.map((co) => (
-                  <button
-                    key={co.symbol}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      const fakeSuggestion = { name: co.name, symbol: co.symbol, exchange: co.exchange };
-                      selectSuggestion(fakeSuggestion);
-                    }}
-                    className={`flex items-center gap-1.5 border px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                      selectedCompany?.symbol === co.symbol
-                        ? "border-mint bg-mint/10 text-mint"
-                        : "border-line bg-paper/30 hover:border-mint hover:bg-mint/5 text-steel hover:text-mint"
+                return (
+                  <div
+                    key={step.name}
+                    className={`flex items-center gap-3.5 border p-3.5 rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? "border-mint/30 bg-mint/5 shadow-[0_0_15px_rgba(8,153,129,0.08)]"
+                        : isDone
+                        ? "border-line bg-paper/40 opacity-70"
+                        : "border-line/30 bg-paper/10 opacity-30"
                     }`}
                   >
-                    <span className="font-mono-data font-black text-[10px]">{co.symbol}</span>
-                    <span className="text-steel/50 font-normal hidden sm:inline">·</span>
-                    <span className="hidden sm:inline">{co.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Parameters Row */}
-            <div className="grid gap-4 sm:grid-cols-2 pt-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-steel mb-2" htmlFor="risk">
-                  Risk Tolerance
-                </label>
-                <select
-                  id="risk"
-                  value={riskTolerance}
-                  onChange={(event) => setRiskTolerance(event.target.value as "low" | "medium" | "high")}
-                  className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
-                >
-                  <option value="low">Low Risk</option>
-                  <option value="medium">Medium Risk</option>
-                  <option value="high">High Risk</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-steel mb-2" htmlFor="horizon">
-                  Investment Horizon
-                </label>
-                <select
-                  id="horizon"
-                  value={horizon}
-                  onChange={(event) => setHorizon(event.target.value as "short" | "medium" | "long")}
-                  className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
-                >
-                  <option value="short">Short Term</option>
-                  <option value="medium">Medium Term</option>
-                  <option value="long">Long Term</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Portfolio Context */}
-            <PortfolioContextGuide 
-              value={portfolioContext} 
-              onChange={setPortfolioContext} 
-            />
-
-            {/* Run Button */}
-            <button
-              type="submit"
-              disabled={loading || !selectedCompany}
-              className="relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden bg-mint font-black text-white dark:text-slate-950 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(8,153,129,0.35)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  <span className="text-xs uppercase tracking-widest font-black">Executing Pipeline…</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" aria-hidden />
-                  <span className="text-xs uppercase tracking-widest font-black">Analyze Now</span>
-                </>
-              )}
-            </button>
-
-            {error && (
-              <div className="border border-berry/30 bg-berry/10 p-3.5 text-xs font-semibold text-berry rounded-xl animate-fade-in leading-relaxed">
-                {error}
-              </div>
-            )}
-          </form>
-        </aside>
-
-        {/* Right Side: Dynamic Content Panel */}
-        <div className="rounded-2xl glass-panel-heavy p-6 shadow-panel border border-line flex flex-col justify-between min-h-[520px]">
-          
-          {/* Loading Timeline Mode */}
-          {loading ? (
-            <div className="flex h-full min-h-[480px] flex-col justify-center items-center py-6 animate-fade-in">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-mint bg-mint/5 border border-mint/10 px-3 py-1 rounded-full animate-pulse">
-                Orchestrating Sub-Agents
-              </span>
-              <h3 className="text-lg font-bold text-ink mb-6 text-center">
-                AI Research Pipeline
-              </h3>
-              
-              <div className="w-full max-w-md space-y-3">
-                {agentSteps.map((step, index) => {
-                  const Icon = step.icon;
-                  const isActive = index === activeAgent;
-                  const isDone = index < activeAgent;
-                  
-                  return (
                     <div
-                      key={step.name}
-                      className={`flex items-center gap-3.5 border p-3.5 rounded-xl transition-all duration-300 ${
+                      className={`p-2 rounded-lg shrink-0 border transition-colors ${
                         isActive
-                          ? "border-mint/30 bg-mint/5 shadow-[0_0_15px_rgba(8,153,129,0.06)]"
+                          ? "bg-mint/10 border-mint/20 text-mint"
                           : isDone
-                            ? "border-line bg-paper/40 opacity-70"
-                            : "border-line/30 bg-paper/10 opacity-30"
+                          ? "bg-paper border-line text-mint"
+                          : "bg-paper/30 border-line/30 text-steel/30"
                       }`}
                     >
-                      <div className={`p-2 rounded-lg shrink-0 border transition-colors ${
-                        isActive 
-                          ? "bg-mint/10 border-mint/20 text-mint" 
-                          : isDone 
-                            ? "bg-paper border-line text-mint" 
-                            : "bg-paper/30 border-line/30 text-steel/30"
-                      }`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className={`text-xs font-bold uppercase tracking-wider ${isActive ? "text-ink" : "text-steel/70"}`}>
-                            {step.name}
-                          </p>
-                          {isActive && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-mint animate-ping" />
-                          )}
-                        </div>
-                        <p className={`text-xs mt-0.5 truncate leading-relaxed ${isActive ? "text-steel" : "text-steel/40"}`}>
-                          {isDone ? "Analysis complete." : isActive ? step.desc : "Waiting to start..."}
-                        </p>
-                      </div>
-
-                      {isActive && (
-                        <Loader2 className="h-3.5 w-3.5 text-mint animate-spin shrink-0" aria-hidden />
-                      )}
-                      {isDone && (
-                        <span className="text-xs font-mono-data font-black text-mint bg-mint/10 px-2 py-0.5 rounded border border-mint/20 shrink-0">
-                          DONE
-                        </span>
-                      )}
+                      <Icon className="h-4 w-4" />
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Progress Slider */}
-              <div className="mt-8 w-full max-w-md">
-                <div className="h-1 w-full overflow-hidden rounded-full bg-line/20 border border-line/10">
-                  <div
-                    className="h-full bg-gradient-to-r from-mint to-indigo-500 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${((activeAgent + 1) / agentSteps.length) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-2.5 text-[10px] font-mono-data font-bold text-steel/50">
-                  <span>STAGE: {activeAgent + 1} / {agentSteps.length}</span>
-                  <span>{Math.round(((activeAgent + 1) / agentSteps.length) * 100)}% COMPILED</span>
-                </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${isActive ? "text-ink" : "text-steel/70"}`}>
+                          {step.name}
+                        </p>
+                        {isActive && <span className="h-1.5 w-1.5 rounded-full bg-mint animate-ping" />}
+                      </div>
+                      <p className={`text-xs mt-0.5 truncate leading-relaxed ${isActive ? "text-steel" : "text-steel/40"}`}>
+                        {isDone ? "Analysis complete." : isActive ? step.desc : "Waiting to start..."}
+                      </p>
+                    </div>
+
+                    {isActive && (
+                      <Loader2 className="h-3.5 w-3.5 text-mint animate-spin shrink-0" aria-hidden />
+                    )}
+                    {isDone && (
+                      <span className="text-xs font-mono-data font-black text-mint bg-mint/10 px-2 py-0.5 rounded border border-mint/20 shrink-0">
+                        DONE
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress Slider */}
+            <div className="mt-8 w-full max-w-md">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-line/20 border border-line/10">
+                <div
+                  className="h-full bg-gradient-to-r from-mint to-indigo-500 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${((activeAgent + 1) / agentSteps.length) * 100}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-2.5 text-[10px] font-mono-data font-bold text-steel/60">
+                <span>STAGE: {activeAgent + 1} / {agentSteps.length}</span>
+                <span>{Math.round(((activeAgent + 1) / agentSteps.length) * 100)}% COMPILED</span>
               </div>
             </div>
-          ) : result ? (
-            
-            /* Results Display Mode */
-            <div className="space-y-6 animate-fade-in-up w-full">
-              {/* Committee Summary banner */}
-              <div className="border border-line bg-paper p-6 rounded-2xl relative overflow-hidden group">
-                <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 w-64 h-64 rounded-full bg-gradient-to-bl from-mint/10 to-transparent blur-3xl" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-mint bg-mint/5 px-2.5 py-0.5 rounded border border-mint/10 inline-block">
-                  Stockmaster.ai Research Verdict
-                </p>
-                <h3 className="mt-3 text-lg font-bold tracking-tight text-ink leading-relaxed">
-                  {(() => {
-                    let text = formatCurrencySymbols(result.summary, result.analyses[0]?.symbol, result.analyses[0]?.currency);
-                    // Replace raw ticker mentions with full company name for readability
-                    if (selectedCompany) {
-                      const ticker = selectedCompany.symbol;
-                      text = text.replace(new RegExp(`\\b${ticker}\\b`, "gi"), selectedCompany.name);
-                    } else if (result.analyses[0]?.company_name && result.analyses[0]?.symbol) {
-                      const ticker = result.analyses[0].symbol.split(".")[0];
-                      text = text.replace(new RegExp(`\\b${ticker}\\b`, "gi"), result.analyses[0].company_name);
-                    }
-                    return text;
-                  })()}
-                </h3>
-                <p className="mt-4 text-[11px] font-medium text-steel/60 leading-relaxed border-t border-line pt-3">
-                  Disclaimer: {result.disclaimer}
-                </p>
-              </div>
+          </div>
+        ) : (
+          /* ── Main Dual-Panel Setup Grid ── */
+          <div className="grid gap-6 lg:grid-cols-[420px_1fr] items-start">
+            {/* Left Column: Research Settings Control Deck */}
+            <aside>
+              <form
+                onSubmit={handleSubmit}
+                className="rounded-2xl glass-panel p-6 shadow-panel border border-line space-y-5 animate-fade-in-up"
+              >
+                <div className="flex items-center gap-2 pb-3 border-b border-line">
+                  <SlidersHorizontal className="h-4 w-4 text-mint" aria-hidden />
+                  <h2 className="text-sm font-black uppercase tracking-wider text-ink">
+                    Research Settings
+                  </h2>
+                </div>
 
-              {/* Individual Reports render */}
-              <div className="space-y-6">
-                {result.analyses.map((analysis) => (
-                  <AnalysisReport
-                    key={analysis.symbol}
-                    analysis={analysis}
-                    overrideCompanyName={
-                      selectedCompany && selectedCompany.symbol === analysis.symbol.split(".")[0]
-                        ? selectedCompany.name
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            
-            /* Landing Initial Mode */
-            <div className="flex h-full min-h-[480px] flex-col justify-center items-center text-center p-6 animate-fade-in">
+                {/* Active Report Resumption Pill (if user navigated back to search) */}
+                {result && !loading && (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-mint/5 border border-mint/20 text-xs animate-fade-in">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="h-2 w-2 rounded-full bg-mint animate-pulse shrink-0" />
+                      <span className="text-steel truncate">
+                        Active: <strong className="text-ink">{result.analyses[0]?.company_name || result.analyses[0]?.symbol}</strong>
+                      </span>
+                    </div>
+                    <Link
+                      href={`/analysis/${result.analyses[0]?.symbol?.split(".")[0]}`}
+                      className="text-mint font-bold hover:underline shrink-0 ml-2"
+                    >
+                      View Report →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Autocomplete Company Search */}
+                <div className="relative relative-autocomplete">
+                  <label
+                    className="block text-xs font-bold uppercase tracking-wider text-steel mb-1.5"
+                    htmlFor="company-search"
+                  >
+                    Quick Company Search
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      id="company-search"
+                      type="text"
+                      value={searchVal}
+                      onChange={(event) => {
+                        setSearchVal(event.target.value);
+                        setSearchOpen(true);
+                        if (event.target.value.trim()) setSelectedCompany(null);
+                      }}
+                      onFocus={() => {
+                        if (searchVal.trim().length > 0) setSearchOpen(true);
+                      }}
+                      onKeyDown={handleKeyDown}
+                      className="h-10 w-full border border-line bg-terminalBg/40 pl-9 pr-10 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint placeholder-steel/45"
+                      placeholder="Type company name (e.g. Cian Agro, Apple...)"
+                      autoComplete="off"
+                    />
+                    <Search className="absolute left-3 h-3.5 w-3.5 text-steel/50" />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 h-3.5 w-3.5 animate-spin text-mint" />
+                    )}
+                  </div>
+
+                  {/* Selected company chip */}
+                  {selectedCompany && (
+                    <div className="mt-2.5 flex items-center gap-2 animate-fade-in">
+                      <div className="flex items-center gap-2.5 bg-mint/8 border border-mint/20 rounded-lg px-3 py-2 flex-1 min-w-0">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-mint/15 border border-mint/25">
+                          <span className="text-[9px] font-black font-mono-data text-mint">
+                            {selectedCompany.symbol.slice(0, 3)}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-ink truncate">{selectedCompany.name}</p>
+                          <p className="text-[10px] font-mono-data text-steel/60">
+                            {selectedCompany.symbol} · {selectedCompany.exchange}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCompany(null);
+                          setQuery("");
+                        }}
+                        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-line text-steel/50 hover:border-berry/40 hover:text-berry transition-colors"
+                        title="Clear selection"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Suggestions Dropdown */}
+                  {searchOpen && searchVal.trim().length > 0 && (
+                    <div className="absolute left-0 right-0 z-[9999] mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-paper backdrop-blur-md p-1 shadow-2xl animate-fade-in divide-y divide-line/20">
+                      {suggestions.length > 0 ? (
+                        suggestions.map((suggestion, index) => (
+                          <button
+                            key={suggestion.symbol}
+                            type="button"
+                            onMouseEnter={() => setActiveIndex(index)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectSuggestion(suggestion);
+                            }}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-xs rounded-lg transition-colors group ${
+                              index === activeIndex
+                                ? "bg-mint/10 text-mint"
+                                : "text-steel hover:bg-mint/5 hover:text-mint"
+                            }`}
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p
+                                className={`font-bold truncate group-hover:text-mint transition-colors ${
+                                  index === activeIndex ? "text-mint" : "text-ink"
+                                }`}
+                              >
+                                <HighlightedText text={suggestion.name} highlight={searchVal} />
+                              </p>
+                              <p
+                                className={`text-[10px] font-mono-data mt-0.5 ${
+                                  index === activeIndex ? "text-mint/70" : "text-steel/50"
+                                }`}
+                              >
+                                <HighlightedText
+                                  text={suggestion.symbol.split(".")[0]}
+                                  highlight={searchVal}
+                                />
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 font-mono-data font-black text-[9px] uppercase tracking-widest border px-1.5 py-0.5 rounded ${
+                                index === activeIndex
+                                  ? "bg-mint/20 border-mint/30 text-mint"
+                                  : "bg-line/20 border-line text-steel/70"
+                              }`}
+                            >
+                              {suggestion.exchange}
+                            </span>
+                          </button>
+                        ))
+                      ) : !searchLoading ? (
+                        <div className="px-4 py-6 text-center text-xs text-steel/50">
+                          <HelpCircle className="mx-auto h-6 w-6 text-steel/30 mb-2 animate-pulse" />
+                          No results found for &ldquo;<span className="text-mint font-bold">{searchVal}</span>&rdquo;
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Select Chips */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-steel/60 mb-2">
+                    Quick Select
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickCompanies.map((co) => (
+                      <button
+                        key={co.symbol}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectSuggestion({ name: co.name, symbol: co.symbol, exchange: co.exchange });
+                        }}
+                        className={`flex items-center gap-1.5 border px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                          selectedCompany?.symbol === co.symbol
+                            ? "border-mint bg-mint/10 text-mint shadow-[0_0_10px_rgba(8,153,129,0.15)]"
+                            : "border-line bg-paper/30 hover:border-mint hover:bg-mint/5 text-steel hover:text-mint"
+                        }`}
+                      >
+                        <span className="font-mono-data font-black text-[10px]">{co.symbol}</span>
+                        <span className="text-steel/40 font-normal">·</span>
+                        <span>{co.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Risk & Horizon Dropdowns */}
+                <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                  <div>
+                    <label
+                      className="block text-xs font-bold uppercase tracking-wider text-steel mb-1.5"
+                      htmlFor="risk"
+                    >
+                      Risk Tolerance
+                    </label>
+                    <select
+                      id="risk"
+                      value={riskTolerance}
+                      onChange={(event) =>
+                        setRiskTolerance(event.target.value as "low" | "medium" | "high")
+                      }
+                      className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
+                    >
+                      <option value="low">Low Risk</option>
+                      <option value="medium">Medium Risk</option>
+                      <option value="high">High Risk</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      className="block text-xs font-bold uppercase tracking-wider text-steel mb-1.5"
+                      htmlFor="horizon"
+                    >
+                      Investment Horizon
+                    </label>
+                    <select
+                      id="horizon"
+                      value={horizon}
+                      onChange={(event) =>
+                        setHorizon(event.target.value as "short" | "medium" | "long")
+                      }
+                      className="h-10 w-full border border-line bg-terminalBg/60 px-3 text-xs font-bold text-ink outline-none rounded-lg transition-colors focus:border-mint"
+                    >
+                      <option value="short">Short Term</option>
+                      <option value="medium">Medium Term</option>
+                      <option value="long">Long Term</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Portfolio Context Guide (collapsible builder + 1-click presets) */}
+                <PortfolioContextGuide value={portfolioContext} onChange={setPortfolioContext} />
+
+                {/* Error Banner */}
+                {error && (
+                  <div className="p-3.5 rounded-xl border border-berry/30 bg-berry/10 text-xs font-bold text-berry animate-fade-in">
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit: ANALYZE NOW */}
+                <button
+                  type="submit"
+                  disabled={loading || !selectedCompany}
+                  className="relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden bg-mint font-black text-white dark:text-slate-950 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(8,153,129,0.35)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+                >
+                  <Zap className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-wider">Analyze Now</span>
+                </button>
+              </form>
+            </aside>
+
+            {/* Right Column: Platform Hero & Dimension Briefing */}
+            <div className="rounded-2xl glass-panel p-8 border border-line shadow-panel flex flex-col justify-center items-center text-center animate-fade-in min-h-[540px]">
               <div className="relative mb-6 animate-float">
                 <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-mint to-indigo-500 opacity-20 blur-xl w-16 h-16 mx-auto" />
                 <div className="h-16 w-16 rounded-full bg-paper border border-line flex items-center justify-center text-3xl shadow-sm">
                   🔮
                 </div>
               </div>
-              
+
               <span className="text-xs font-black uppercase tracking-[0.2em] text-steel/60">
                 Decision Support Engine
               </span>
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-ink max-w-md leading-snug">
                 Unified Multi-Agent Financial Research
               </h2>
-              <p className="mt-3 max-w-sm text-xs font-medium text-steel leading-relaxed">
-                Input any ticker or stock query to launch six collaborative AI sub-agents. 
-                They scan market financials, recent news headlines, retail sentiment charts, and sizing portfolios.
+              <p className="mt-3 max-w-md text-xs font-medium text-steel leading-relaxed">
+                Select any ticker or company above to launch six collaborative AI sub-agents. 
+                Our committee synthesizes live fundamental metrics, technical patterns, catalyst headlines, sentiment feeds, and portfolio constraints into an institutional-grade research dossier.
               </p>
-              
-              <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-sm w-full text-left">
-                <div className="p-3 bg-paper/40 border border-line rounded-xl">
-                  <div className="text-mint font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <Zap className="h-3 w-3" /> Real-time
+
+              <div className="mt-8 grid gap-3.5 grid-cols-1 sm:grid-cols-2 max-w-lg w-full text-left">
+                <div className="p-3.5 bg-paper/50 border border-line rounded-xl hover:border-mint/30 transition-all">
+                  <div className="text-mint font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5" /> Real-time Market Feeds
                   </div>
-                  <p className="text-[11px] text-steel/60 leading-relaxed">Live yfinance market feeds and news web crawls.</p>
+                  <p className="text-[11px] text-steel/70 leading-relaxed">
+                    Live technical indicators, financial statements, and catalyst crawls.
+                  </p>
                 </div>
-                <div className="p-3 bg-paper/40 border border-line rounded-xl">
-                  <div className="text-indigo-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <Activity className="h-3 w-3" /> Final Verdict
+
+                <div className="p-3.5 bg-paper/50 border border-line rounded-xl hover:border-indigo-500/30 transition-all">
+                  <div className="text-indigo-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5" /> Committee Debate
                   </div>
-                  <p className="text-[11px] text-steel/60 leading-relaxed">Agents debate signals to form a final verdict.</p>
+                  <p className="text-[11px] text-steel/70 leading-relaxed">
+                    Adversarial Bull vs Bear advocates cross-examined before ruling.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-paper/50 border border-line rounded-xl hover:border-mint/30 transition-all">
+                  <div className="text-mint font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <BarChart3 className="h-3.5 w-3.5" /> 6-Pillar Thesis
+                  </div>
+                  <p className="text-[11px] text-steel/70 leading-relaxed">
+                    Valuation, growth runway, technical levels, and economic moats.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-paper/50 border border-line rounded-xl hover:border-amber transition-all">
+                  <div className="text-amber font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" /> Action Plan
+                  </div>
+                  <p className="text-[11px] text-steel/70 leading-relaxed">
+                    Prioritized stop-loss, entry triggers, and tranche execution checklist.
+                  </p>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </section>
-    </main>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
