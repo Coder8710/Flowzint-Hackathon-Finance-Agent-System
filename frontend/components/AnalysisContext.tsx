@@ -14,6 +14,7 @@ interface AnalysisContextValue {
   setTheme: (t: "light" | "dark") => void;
   toggleTheme: () => void;
   runAnalysis: (req: AnalysisRequest) => Promise<void>;
+  ensureAnalysis: (symbol: string) => Promise<void>;
   clearResult: () => void;
 }
 
@@ -38,6 +39,11 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       const storedReq = sessionStorage.getItem("stockmaster_last_request");
       if (storedReq) {
         setLastRequest(JSON.parse(storedReq));
+      }
+      const storedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+      if (storedTheme) {
+        setThemeState(storedTheme);
+        document.documentElement.classList.toggle("dark", storedTheme === "dark");
       }
     } catch {
       // Ignore parse errors
@@ -87,6 +93,26 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Ensures data is loaded for the requested symbol without re-running if already in memory
+  const ensureAnalysis = useCallback(
+    async (symbol: string) => {
+      const cleanSym = symbol.split(".")[0].toUpperCase();
+      if (result) {
+        const hasSymbol = result.analyses.some(
+          (a) => a.symbol.split(".")[0].toUpperCase() === cleanSym
+        );
+        if (hasSymbol) return;
+      }
+      await runAnalysis({
+        query: cleanSym,
+        symbol: cleanSym,
+        risk_tolerance: "medium",
+        horizon: "medium",
+      });
+    },
+    [result, runAnalysis]
+  );
+
   const clearResult = useCallback(() => {
     setResult(null);
     setError("");
@@ -99,7 +125,19 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AnalysisContext.Provider
-      value={{ result, loading, error, lastRequest, theme, isHydrated, setTheme, toggleTheme, runAnalysis, clearResult }}
+      value={{
+        result,
+        loading,
+        error,
+        lastRequest,
+        theme,
+        isHydrated,
+        setTheme,
+        toggleTheme,
+        runAnalysis,
+        ensureAnalysis,
+        clearResult,
+      }}
     >
       {children}
     </AnalysisContext.Provider>

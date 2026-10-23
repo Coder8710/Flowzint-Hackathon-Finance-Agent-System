@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AnalysisProvider } from "@/components/AnalysisContext";
 
 export const metadata: Metadata = {
   title: "Stockmaster.ai — Multi-Agent Stock Analyzer",
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <AnalysisProvider>{children}</AnalysisProvider>
+      </body>
     </html>
   );
 }
+
