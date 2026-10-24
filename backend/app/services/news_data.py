@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import time
 from typing import Any
 from urllib.parse import quote_plus, urlparse
 
@@ -113,13 +114,33 @@ def _get_source_name(url: str | None) -> str:
 class NewsDataService:
     """Collects recent finance headlines from Tavily when configured, otherwise Yahoo RSS."""
 
+    def __init__(self, cache_ttl_seconds: int = 180) -> None:
+        self._cache_ttl_seconds = cache_ttl_seconds
+        self._news_cache: dict[tuple[str, str], tuple[float, list[NewsItem]]] = {}
+
     async def search_company_news(self, symbol: str, company_name: str) -> list[NewsItem]:
+        key = (symbol.upper().strip(), company_name.casefold().strip())
+        cached = self._news_cache.get(key)
+        now = time.monotonic()
+        if cached and now - cached[0] < self._cache_ttl_seconds:
+            return list(cached[1])
+
         settings = get_settings()
         if settings.tavily_api_key:
             tavily_results = await self._search_tavily(symbol, company_name, settings.tavily_api_key)
             if tavily_results:
-                return tavily_results
-        return await self._search_yahoo_rss(symbol)
+                results = tavily_results
+            else:
+                results = await self._search_yahoo_rss(symbol)
+        else:
+            results = await self._search_yahoo_rss(symbol)
+
+        self._news_cache[key] = (time.monotonic(), list(results))
+        if len(self._news_cache) > 500:
+            oldest = sorted(self._news_cache.items(), key=lambda item: item[1][0])[:100]
+            for old_key, _ in oldest:
+                self._news_cache.pop(old_key, None)
+        return list(results)
 
     async def _search_tavily(self, symbol: str, company_name: str, api_key: str) -> list[NewsItem]:
         import asyncio

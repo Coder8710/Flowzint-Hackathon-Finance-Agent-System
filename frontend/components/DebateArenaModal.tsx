@@ -9,7 +9,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   Scale, 
-  MessageSquare, 
   AlertCircle, 
   CheckCircle2, 
   Sparkles,
@@ -120,7 +119,7 @@ export function DebateArenaModal({
   symbol,
   companyName,
 }: DebateArenaModalProps) {
-  const [activeTab, setActiveTab] = useState<"arena" | "rounds" | "judge">("arena");
+  const [activeTab, setActiveTab] = useState<"arena" | "judge">("arena");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -237,18 +236,7 @@ export function DebateArenaModal({
             }`}
           >
             <Scale className="h-3.5 w-3.5" />
-            <span>Advocate Case Dossiers</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("rounds")}
-            className={`py-3 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === "rounds"
-                ? "border-mint text-mint bg-mint/5"
-                : "border-transparent text-steel hover:text-ink"
-            }`}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            <span>Cross-Examination Rounds</span>
+            <span>Bull and Bear Cases</span>
           </button>
           <button
             onClick={() => setActiveTab("judge")}
@@ -435,59 +423,6 @@ export function DebateArenaModal({
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {activeTab === "rounds" && (
-            <div className="space-y-4 max-w-4xl mx-auto">
-              <div className="p-4 rounded-xl border border-line bg-paper/30">
-                <h4 className="text-xs font-black uppercase tracking-wider text-ink mb-1">
-                  Adversarial Exchange Transcript
-                </h4>
-                <p className="text-xs text-steel">
-                  Each advocate directly answers the opposing arguments before the Independent Judge issues the verdict.
-                </p>
-              </div>
-
-              {debate.debate_rounds.map((round) => (
-                <div key={round.round_number} className="space-y-4">
-                  {/* Bull Dialogue bubble */}
-                  <div className="flex gap-3 items-start">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 shrink-0 font-bold text-sm">
-                      🐂
-                    </div>
-                    <div className="flex-1 bg-emerald-500/5 border border-emerald-500/25 p-4 rounded-2xl rounded-tl-sm space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-black uppercase tracking-wider text-emerald-500">
-                          Bullish Advocate Rebuttal
-                        </span>
-                        <span className="text-[10px] text-steel">Round {round.round_number}</span>
-                      </div>
-                      <p className="text-xs text-ink leading-relaxed">
-                        {round.bullish_response}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Bear Dialogue bubble */}
-                  <div className="flex gap-3 items-start flex-row-reverse">
-                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 shrink-0 font-bold text-sm">
-                      🐻
-                    </div>
-                    <div className="flex-1 bg-rose-500/5 border border-rose-500/25 p-4 rounded-2xl rounded-tr-sm space-y-1.5 text-right">
-                      <div className="flex items-center justify-between text-[11px] flex-row-reverse">
-                        <span className="font-black uppercase tracking-wider text-rose-500">
-                          Bearish Advocate Reply
-                        </span>
-                        <span className="text-[10px] text-steel">Round {round.round_number}</span>
-                      </div>
-                      <p className="text-xs text-ink leading-relaxed text-left">
-                        {round.bearish_response}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 

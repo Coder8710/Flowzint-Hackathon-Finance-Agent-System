@@ -39,7 +39,7 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
     return (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Moat Quality", value: String(data.moat_rating ?? "Wide") },
+          { label: "Moat Quality", value: String(data.moat_rating ?? "Unavailable") },
           { label: "Intrinsic Value", value: formatCurrencySymbols(String(data.intrinsic_value_estimate ?? "—"), symbol, currency) },
           { label: "P/E Ratio", value: String(metrics.pe_ratio ?? data.pe_ratio ?? "—") },
           { label: "Debt to Equity", value: String(metrics.debt_to_equity ?? data.debt_to_equity ?? "—") },
@@ -61,8 +61,8 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
     return (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Trend Direction", value: String(data.trend_direction ?? "Uptrend") },
-          { label: "Signal", value: String(data.signal ?? "Wait") },
+          { label: "Trend Direction", value: String(data.trend_direction ?? "Unavailable") },
+          { label: "Signal", value: String(data.signal ?? "Unavailable") },
           { label: "14-Period RSI", value: String(data.rsi_reading ?? "—") },
           { label: "Key Resistance", value: formatCurrencySymbols(String(data.key_resistance ?? "—"), symbol, currency) },
         ].map((item) => (
@@ -80,12 +80,12 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
   }
 
   if (name.includes("News")) {
-    const sources = Array.isArray(data.sources) ? data.sources.join(", ") : String(data.sources ?? "Yahoo RSS, Global Web");
+    const sources = Array.isArray(data.sources) ? data.sources.join(", ") : String(data.sources ?? "Unavailable");
     return (
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Macro Impact", value: String(data.impact_direction ?? "Constructive") },
-          { label: "Catalyst Category", value: String(data.catalyst_type ?? "Earnings / Guidance") },
+          { label: "Macro Impact", value: String(data.impact_direction ?? "Unavailable") },
+          { label: "Catalyst Category", value: String(data.catalyst_type ?? "Unavailable") },
           { label: "Coverage Sources", value: sources },
         ].map((item) => (
           <div key={item.label} className="p-3.5 rounded-xl border border-line bg-paper/50">
@@ -105,9 +105,9 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
     return (
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Fear & Greed Proxy", value: String(data.fear_greed_proxy ?? "Greed") },
-          { label: "Social Buzz Volume", value: String(data.social_buzz_volume ?? "High") },
-          { label: "Positioning Bias", value: String(data.positioning_bias ?? "Bullish Skew") },
+          { label: "Fear & Greed Proxy", value: String(data.fear_greed_proxy ?? "Unavailable") },
+          { label: "Social Buzz Volume", value: String(data.social_buzz_volume ?? "Unavailable") },
+          { label: "Positioning Bias", value: String(data.positioning_bias ?? "Unavailable") },
         ].map((item) => (
           <div key={item.label} className="p-3.5 rounded-xl border border-line bg-paper/50">
             <span className="text-[10px] font-bold uppercase tracking-wider text-steel block mb-1">
@@ -123,23 +123,24 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
   }
 
   if (name.includes("Risk")) {
-    const rScore = Number(data.risk_score ?? 50);
+    const rScore = data.risk_score === null || data.risk_score === undefined ? NaN : Number(data.risk_score);
+    const hasRiskScore = Number.isFinite(rScore);
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="p-3.5 rounded-xl border border-line bg-paper/50">
           <span className="text-[10px] font-bold uppercase tracking-wider text-steel block mb-1">
             Downside Volatility Score
           </span>
-          <span className={`text-base font-black font-mono-data ${rScore > 65 ? "text-rose-500" : "text-mint"}`}>
-            {rScore} / 100
+          <span className={`text-base font-black font-mono-data ${hasRiskScore && rScore > 65 ? "text-rose-500" : "text-mint"}`}>
+            {hasRiskScore ? `${rScore} / 100` : "Unavailable"}
           </span>
         </div>
         <div className="p-3.5 rounded-xl border border-line bg-paper/50">
           <span className="text-[10px] font-bold uppercase tracking-wider text-steel block mb-1">
             Assessed Risk Regime
           </span>
-          <span className={`text-base font-bold ${rScore > 65 ? "text-rose-500" : "text-mint"}`}>
-            {rScore > 65 ? "High Drawdown Risk" : rScore > 40 ? "Moderate Volatility" : "Defensive"}
+          <span className={`text-base font-bold ${hasRiskScore && rScore > 65 ? "text-rose-500" : "text-mint"}`}>
+            {!hasRiskScore ? "Unavailable" : rScore > 65 ? "High Drawdown Risk" : rScore > 40 ? "Moderate Volatility" : "Defensive"}
           </span>
         </div>
       </div>
@@ -153,13 +154,37 @@ function AgentKPIs({ agent, symbol, currency }: { agent: AgentFinding; symbol: s
           Portfolio Allocation Strategy
         </span>
         <p className="text-xs text-mint font-medium leading-relaxed">
-          {formatCurrencySymbols(String(data.allocation_advice ?? "Standard tranche sizing recommended."), symbol, currency)}
+          {formatCurrencySymbols(String(data.allocation_advice ?? "No allocation advice was returned."), symbol, currency)}
         </p>
       </div>
     );
   }
 
   return null;
+}
+
+function getAgentSummary(agent: AgentFinding): string {
+  const summary = String(agent.summary ?? "").trim();
+  if (summary && !/^(?:n\/?a|none|no advice provided)\.?$/i.test(summary)) return summary;
+
+  const signals = Array.isArray(agent.signals)
+    ? agent.signals
+        .map((signal) => String(signal).trim())
+        .filter((signal) => signal && !/^(?:n\/?a|none|no advice provided)\.?$/i.test(signal))
+    : [];
+  if (signals.length) {
+    return `The analyst returned supporting signals but no written summary: ${signals.join("; ")}`;
+  }
+
+  const details = Object.entries(agent.data ?? {})
+    .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
+    .slice(0, 4)
+    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value)}`);
+  if (details.length) {
+    return `A written summary was unavailable. Available analyst data: ${details.join("; ")}`;
+  }
+
+  return "No written guidance was returned for this analyst. Use the overall recommendation and investment thesis while reviewing the other reports.";
 }
 
 export default function ReportsPage() {
@@ -193,7 +218,7 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState(initialIndex >= 0 ? initialIndex : 0);
 
   const currentTab = agentTabs[activeTab];
-  const activeAgent = analysis.agents.find((a) => a.agent.includes(currentTab.match));
+  const activeAgent = analysis.agents.find((a) => a.agent.toLowerCase().includes(currentTab.match.toLowerCase()));
 
   return (
     <AppShell>
@@ -225,7 +250,7 @@ export default function ReportsPage() {
             </div>
           </div>
           <span className="text-xs font-mono-data font-bold text-mint bg-mint/10 border border-mint/20 px-3 py-1 rounded-lg">
-            Active Dossier
+            Reports available
           </span>
         </div>
 
@@ -260,14 +285,14 @@ export default function ReportsPage() {
           })}
         </div>
 
-        {/* Active Agent Dossier Card */}
+        {/* Active Analyst Report */}
         {activeAgent ? (
           <div className="rounded-2xl glass-panel border border-line shadow-panel p-6 space-y-6 animate-fade-in">
-            {/* Dossier Header */}
+            {/* Report Header */}
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-mint">
-                  Specialist Dossier
+                  Analyst Report
                 </span>
                 <h2 className="text-lg font-black tracking-tight text-ink mt-0.5">
                   {activeAgent.agent}
@@ -293,17 +318,17 @@ export default function ReportsPage() {
                 Specialist Summary & Core Analysis
               </span>
               <div className="p-4 rounded-xl border border-line bg-paper/50 text-xs font-medium text-ink leading-relaxed">
-                {formatCurrencySymbols(activeAgent.summary, sym, analysis.currency)}
+                {formatCurrencySymbols(getAgentSummary(activeAgent), sym, analysis.currency)}
               </div>
             </div>
 
             {/* Key Signals Checklist */}
             {activeAgent.signals && activeAgent.signals.length > 0 && (
-              <div className="space-y-2.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
-                  Telemetry Signals Checklist ({activeAgent.signals.length})
-                </span>
-                <div className="grid gap-2 sm:grid-cols-2">
+              <details className="group rounded-xl border border-line bg-paper/30 p-3">
+                <summary className="cursor-pointer text-xs font-bold text-ink">
+                  View analyst signals ({activeAgent.signals.length})
+                </summary>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {activeAgent.signals.map((signal, sIdx) => (
                     <div
                       key={sIdx}
@@ -316,20 +341,25 @@ export default function ReportsPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </details>
             )}
 
             {/* Key Performance Indicators */}
-            <div className="space-y-2.5 border-t border-line pt-4">
-              <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
-                Key Performance Indicators (KPIs)
-              </span>
-              <AgentKPIs agent={activeAgent} symbol={sym} currency={analysis.currency} />
-            </div>
+            <details className="group rounded-xl border border-line bg-paper/30 p-3">
+              <summary className="cursor-pointer text-xs font-bold text-ink">
+                View financial and research details
+              </summary>
+              <div className="mt-3 space-y-2.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-steel block">
+                  Key Performance Indicators
+                </span>
+                <AgentKPIs agent={activeAgent} symbol={sym} currency={analysis.currency} />
+              </div>
+            </details>
           </div>
         ) : (
           <div className="text-center py-12 text-steel text-xs">
-            No report data available for this specialist agent.
+            No report was returned for this analyst. Review the <Link href={`${base}/thesis`} className="text-mint hover:underline">investment thesis</Link> and the other specialist reports for the available findings.
           </div>
         )}
 

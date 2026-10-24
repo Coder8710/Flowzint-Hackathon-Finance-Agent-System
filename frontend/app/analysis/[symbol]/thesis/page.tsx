@@ -28,13 +28,20 @@ function PillarCard({
   symbol: string;
   currency?: string;
 }) {
-  const [open, setOpen] = useState(index < 2);
+  const [open, setOpen] = useState(false);
   const config = PILLAR_CONFIG[index] || { icon: "📌", title: `Strategic Pillar ${index + 1}` };
 
-  // Split into opening headline and detailed arguments
-  const firstDot = text.indexOf(". ");
-  const headline = firstDot > 0 && firstDot < 140 ? text.substring(0, firstDot + 1) : text;
-  const deepDive = firstDot > 0 && firstDot < 140 ? text.substring(firstDot + 2) : "";
+  const fullText = String(text ?? "").trim();
+  const sentenceEnd = fullText.search(/[.!?]\s/);
+  const previewEnd = sentenceEnd > 0 && sentenceEnd <= 220
+    ? sentenceEnd + 1
+    : fullText.length > 220
+    ? fullText.lastIndexOf(" ", 220)
+    : fullText.length;
+  const preview = previewEnd > 0 && previewEnd < fullText.length
+    ? `${fullText.slice(0, previewEnd).trimEnd()}…`
+    : fullText;
+  const detailId = `thesis-detail-${index}`;
 
   return (
     <div className="rounded-2xl glass-panel border border-line p-5 shadow-panel space-y-3 transition-all hover:border-mint/30">
@@ -59,29 +66,26 @@ function PillarCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-line bg-paper/60 text-xs font-bold text-steel hover:text-ink hover:border-mint transition-colors"
-          aria-expanded={open}
-        >
-          <span>Detail</span>
-          {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
+        {preview !== fullText && (
+          <button
+            type="button"
+            onClick={() => setOpen((isOpen) => !isOpen)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-line bg-paper/60 text-xs font-bold text-steel hover:text-ink hover:border-mint transition-colors"
+            aria-expanded={open}
+            aria-controls={detailId}
+          >
+            <span>{open ? "Hide details" : "Read full detail"}</span>
+            {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        )}
       </div>
 
-      <div className="bg-paper/40 border border-line/60 rounded-xl p-3.5 text-xs font-medium text-ink leading-relaxed">
-        {formatCurrencySymbols(headline, symbol, currency)}
+      <div
+        id={detailId}
+        className="bg-paper/40 border border-line/60 rounded-xl p-3.5 text-xs font-medium text-ink leading-relaxed"
+      >
+        {formatCurrencySymbols(open ? fullText : preview, symbol, currency)}
       </div>
-
-      {open && deepDive && (
-        <div className="pt-2 border-t border-line/60 text-xs text-steel leading-relaxed space-y-2 animate-fade-in">
-          <span className="text-[10px] font-black uppercase tracking-wider text-steel/60 block">
-            Analytical Evidence & Detail
-          </span>
-          <p>{formatCurrencySymbols(deepDive, symbol, currency)}</p>
-        </div>
-      )}
     </div>
   );
 }

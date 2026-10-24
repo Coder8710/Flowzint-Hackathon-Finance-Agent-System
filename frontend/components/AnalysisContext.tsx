@@ -1,19 +1,22 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AnalysisRequest, AnalysisResponse } from "@/lib/types";
-import { analyzeStock } from "@/lib/api";
+import { analyzeStock, runDebate } from "@/lib/api";
 
 interface AnalysisContextValue {
   result: AnalysisResponse | null;
   loading: boolean;
   error: string;
+  debateLoading: boolean;
+  debateError: string;
   lastRequest: AnalysisRequest | null;
   theme: "light" | "dark";
   isHydrated: boolean;
   setTheme: (t: "light" | "dark") => void;
   toggleTheme: () => void;
   runAnalysis: (req: AnalysisRequest) => Promise<void>;
+  loadDebate: (symbol: string) => Promise<void>;
   clearResult: () => void;
 }
 
@@ -23,9 +26,12 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [debateLoading, setDebateLoading] = useState(false);
+  const [debateError, setDebateError] = useState("");
   const [lastRequest, setLastRequest] = useState<AnalysisRequest | null>(null);
   const [theme, setThemeState] = useState<"light" | "dark">("dark");
   const [isHydrated, setIsHydrated] = useState(false);
+  const debateRequestRef = useRef<Promise<void> | null>(null);
 
   // Hydrate from sessionStorage on mount
   useEffect(() => {
@@ -68,6 +74,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const runAnalysis = useCallback(async (req: AnalysisRequest) => {
     setLoading(true);
     setError("");
+    setDebateError("");
     setLastRequest(req);
     try {
       const response = await analyzeStock(req);
@@ -87,10 +94,59 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadDebate = useCallback(async (symbol: string) => {
+    if (debateRequestRef.current) return debateRequestRef.current;
+
+    const analysis = result?.analyses.find(
+      (item) => item.symbol.split(".")[0].toUpperCase() === symbol.split(".")[0].toUpperCase()
+    );
+    if (!analysis || analysis.debate) return;
+
+    setDebateLoading(true);
+    setDebateError("");
+    const request = (async () => {
+      try {
+        const debate = await runDebate(analysis);
+        setResult((previous) => {
+          if (!previous) return previous;
+          const updated = {
+            ...previous,
+            analyses: previous.analyses.map((item) => {
+              if (item.symbol.split(".")[0].toUpperCase() !== analysis.symbol.split(".")[0].toUpperCase()) return item;
+              return {
+                ...item,
+                debate,
+                recommendation: (debate.verdict === "Neutral" ? "Hold" : debate.verdict) as "Buy" | "Hold" | "Sell",
+                confidence: debate.confidence,
+              };
+            }),
+          };
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("stockmaster_analysis_result", JSON.stringify(updated));
+          }
+          return updated;
+        });
+      } catch (caught) {
+        setDebateError(
+          caught instanceof Error ? caught.message : "Unable to load the debate. Please try again."
+        );
+      } finally {
+        setDebateLoading(false);
+      }
+    })();
+    debateRequestRef.current = request;
+    try {
+      await request;
+    } finally {
+      debateRequestRef.current = null;
+    }
+  }, [result]);
+
   const clearResult = useCallback(() => {
     setResult(null);
     setError("");
     setLastRequest(null);
+    setDebateError("");
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("stockmaster_analysis_result");
       sessionStorage.removeItem("stockmaster_last_request");
@@ -99,7 +155,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AnalysisContext.Provider
-      value={{ result, loading, error, lastRequest, theme, isHydrated, setTheme, toggleTheme, runAnalysis, clearResult }}
+      value={{ result, loading, error, debateLoading, debateError, lastRequest, theme, isHydrated, setTheme, toggleTheme, runAnalysis, loadDebate, clearResult }}
     >
       {children}
     </AnalysisContext.Provider>

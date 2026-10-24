@@ -62,7 +62,7 @@ const agentSteps = [
   { name: "Sentiment Analysis Agent", icon: Brain, desc: "Measuring public mood, social buzz, and investor sentiment..." },
   { name: "Risk Analysis Agent", icon: Shield, desc: "Assessing risk level, volatility, and potential downsides..." },
   { name: "Portfolio Advisor Agent", icon: Briefcase, desc: "Reviewing how this fits your portfolio and investment goals..." },
-  { name: "Final Verdict Coordinator", icon: Activity, desc: "Combining all findings into a clear investment recommendation..." },
+  { name: "Investment Committee Chair", icon: Activity, desc: "Synthesizing specialist findings into the research report..." },
 ];
 
 export default function Home() {
@@ -561,7 +561,7 @@ export default function Home() {
               </h2>
               <p className="mt-3 max-w-md text-xs font-medium text-steel leading-relaxed">
                 Select any ticker or company above to launch six collaborative AI sub-agents. 
-                Our committee synthesizes live fundamental metrics, technical patterns, catalyst headlines, sentiment feeds, and portfolio constraints into an institutional-grade research dossier.
+                Our committee synthesizes live fundamental metrics, technical patterns, catalyst headlines, sentiment feeds, and portfolio constraints into an institutional-grade research report.
               </p>
 
               <div className="mt-8 grid gap-3.5 grid-cols-1 sm:grid-cols-2 max-w-lg w-full text-left">

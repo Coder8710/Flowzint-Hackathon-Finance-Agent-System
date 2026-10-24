@@ -80,16 +80,37 @@ class MasterAgent:
         thesis = _top_thesis(agents)
         action_items = _action_items(symbol, recommendation, risk_score, agents)
 
+        analysis = CompanyAnalysis(
+            symbol=symbol,
+            company_name=snapshot.company_name,
+            recommendation=recommendation,
+            confidence=round(min(0.92, max(0.45, abs(composite - 50) / 70 + 0.48)), 2),
+            risk_score=risk_score,
+            target_bias=target_bias,
+            thesis=thesis,
+            action_items=action_items,
+            agents=agents,
+            news=news_items,
+            currency=snapshot.currency,
+        )
+
+        # CrewAI synthesis and the judge use the same completed specialist report.
+        # Run them together so the user does not wait for two serial LLM pipelines.
+        crew_task = asyncio.create_task(asyncio.to_thread(
+            self.finance_crew.run,
+            snapshot,
+            agents,
+            news_items,
+            request.risk_tolerance,
+            request.horizon,
+            request.portfolio_context,
+        ))
+        debate_task = asyncio.create_task(
+            asyncio.to_thread(self.debate_system.run, analysis.model_copy(deep=True))
+        )
+
         try:
-            crew_result = await asyncio.to_thread(
-                self.finance_crew.run,
-                snapshot,
-                agents,
-                news_items,
-                request.risk_tolerance,
-                request.horizon,
-                request.portfolio_context,
-            )
+            crew_result = await crew_task
             recommendation = crew_result["recommendation"]
             target_bias = crew_result["target_bias"]
             thesis = crew_result["thesis"] or thesis
@@ -183,23 +204,16 @@ class MasterAgent:
             logger.info("CrewAI committee synthesis skipped: %s. Using deterministic fallback.", exc)
 
 
-        analysis = CompanyAnalysis(
-            symbol=symbol,
-            company_name=snapshot.company_name,
-            recommendation=recommendation,
-            confidence=round(min(0.92, max(0.45, abs(composite - 50) / 70 + 0.48)), 2),
-            risk_score=risk_score,
-            target_bias=target_bias,
-            thesis=thesis,
-            action_items=action_items,
-            agents=agents,
-            news=news_items,
-            currency=snapshot.currency,
-        )
-        # The Debate Arena consumes the complete Specialist Committee report as evidence. Its Judge
-        # verdict becomes the final recommendation while the Committee's recommendation
-        # and confidence remain recorded inside analysis.debate for auditability.
-        analysis.debate = await asyncio.to_thread(self.debate_system.run, analysis)
+        analysis.recommendation = recommendation
+        analysis.risk_score = risk_score
+        analysis.target_bias = target_bias
+        analysis.thesis = thesis
+        analysis.action_items = action_items
+        analysis.agents = agents
+        analysis.confidence = round(min(0.92, max(0.45, abs(composite - 50) / 70 + 0.48)), 2)
+        analysis.debate = await debate_task
+        analysis.debate.source_recommendation = recommendation
+        analysis.debate.source_confidence = analysis.confidence
         analysis.recommendation = {
             "Buy": "Buy",
             "Sell": "Sell",
@@ -545,7 +559,7 @@ def create_master_agent(llm: str) -> "Agent":
         llm=llm,
         verbose=False,
         memory=False,
-        max_iter=15,
+        max_iter=6,
         max_rpm=10,
         cache=True,
         allow_delegation=True,  # master delegates to specialists

@@ -3,89 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Check, CheckSquare, ListOrdered, Square } from "lucide-react";
+import { ArrowLeft, CheckSquare, ListOrdered, Square } from "lucide-react";
 import { useAnalysis } from "@/components/AnalysisContext";
 import { AppShell } from "@/components/AppShell";
+import { sequenceActionItems } from "@/lib/actionItems";
 import { formatCurrencySymbols } from "@/lib/currency";
-
-interface RankedAction {
-  step: number;
-  priorityLabel: string;
-  badgeClass: string;
-  dotColor: string;
-  title: string;
-  body: string;
-}
-
-function rankAction(raw: string, idx: number, recommendation: string): RankedAction {
-  const text = raw.trim();
-  const low = text.toLowerCase();
-  let label = "Priority · Execution Step";
-  let badgeClass = "border-indigo-500/30 bg-indigo-500/10 text-indigo-400";
-  let dotColor = "bg-indigo-500";
-
-  if (
-    low.includes("immediate") ||
-    low.includes("limit buy") ||
-    low.includes("entry trigger") ||
-    low.includes("gtc limit") ||
-    (recommendation === "Buy" && (low.includes("entry") || low.includes("starter position") || low.includes("buy at"))) ||
-    (recommendation === "Sell" && (low.includes("exit") || low.includes("sell") || low.includes("liquidate")))
-  ) {
-    label = "Priority 1 · Immediate Trigger";
-    badgeClass = recommendation === "Sell"
-      ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
-      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500";
-    dotColor = recommendation === "Sell" ? "bg-rose-500" : "bg-emerald-500";
-  } else if (
-    low.includes("stop-loss") ||
-    low.includes("hard stop") ||
-    low.includes("trailing stop") ||
-    low.includes("risk protocol") ||
-    low.includes("protect capital")
-  ) {
-    label = "Priority 2 · Risk Protocol & Stop";
-    badgeClass = "border-rose-500/30 bg-rose-500/10 text-rose-500";
-    dotColor = "bg-rose-500";
-  } else if (
-    low.includes("profit-taking") ||
-    low.includes("take profit") ||
-    low.includes("target price") ||
-    low.includes("resistance level") ||
-    low.includes("tranche")
-  ) {
-    label = "Priority 3 · Profit Target";
-    badgeClass = "border-amber/30 bg-amber/10 text-amber";
-    dotColor = "bg-amber";
-  } else if (
-    low.includes("earnings") ||
-    low.includes("review date") ||
-    low.includes("catalyst") ||
-    low.includes("quarterly")
-  ) {
-    label = "Priority 4 · Catalyst & Earnings Date";
-    badgeClass = "border-indigo-500/30 bg-indigo-500/10 text-indigo-400";
-    dotColor = "bg-indigo-500";
-  }
-
-  // Parse title & body
-  let title = `Action Step ${idx + 1}`;
-  let body = text;
-  if (text.includes(":") && text.indexOf(":") < 60) {
-    const parts = text.split(":");
-    title = parts[0].replace(/^Action\s*\d+\s*[-–]?\s*/i, "").trim();
-    body = parts.slice(1).join(":").trim();
-  }
-
-  return {
-    step: idx + 1,
-    priorityLabel: label,
-    badgeClass,
-    dotColor,
-    title,
-    body,
-  };
-}
 
 export default function ActionsPage() {
   const { result } = useAnalysis();
@@ -93,6 +15,7 @@ export default function ActionsPage() {
   const router = useRouter();
   const symbol = (params.symbol as string)?.toUpperCase();
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!result) router.replace("/");
@@ -120,9 +43,7 @@ export default function ActionsPage() {
     });
   };
 
-  const rankedActions = analysis.action_items.map((item, idx) =>
-    rankAction(item, idx, analysis.recommendation)
-  );
+  const actions = sequenceActionItems(analysis.action_items, analysis.recommendation);
 
   return (
     <AppShell>
@@ -150,27 +71,32 @@ export default function ActionsPage() {
                   Next Action Items · Step-by-Step
                 </h1>
                 <span className="text-[10px] font-black uppercase tracking-wider text-mint bg-mint/10 border border-mint/20 px-2 py-0.5 rounded">
-                  Ranked by Priority & Urgency
+                  Complete in order
                 </span>
               </div>
               <p className="text-xs text-steel mt-0.5">
-                {analysis.company_name} · {sym} · {analysis.action_items.length} Structured Steps
+                {analysis.company_name} · {sym} · {actions.length} steps to follow
               </p>
             </div>
           </div>
 
           <div className="text-xs font-mono-data font-bold text-mint bg-mint/10 border border-mint/20 px-3 py-1.5 rounded-lg">
-            {completedSteps.size} / {analysis.action_items.length} Completed
+            {completedSteps.size} / {actions.length} Completed
           </div>
         </div>
 
         {/* Action checklist */}
         <div className="space-y-3.5">
-          {rankedActions.map((action, idx) => {
-            const isDone = completedSteps.has(idx);
+          {actions.map((action) => {
+            const isDone = completedSteps.has(action.step);
+            const isLongDescription = action.description.length > 260;
+            const isExpanded = expandedDescriptions.has(action.step);
+            const visibleDescription = isLongDescription && !isExpanded
+              ? `${action.description.slice(0, 240).trimEnd()}…`
+              : action.description;
             return (
               <div
-                key={idx}
+                key={action.sourceIndex}
                 className={`rounded-2xl border p-5 transition-all glass-panel ${
                   isDone
                     ? "border-line bg-paper/20 opacity-60"
@@ -186,17 +112,17 @@ export default function ActionsPage() {
                   </div>
 
                   {/* Content */}
-                  <div className="min-w-0 flex-1 space-y-2">
+                  <div className="min-w-0 flex-1 space-y-2.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${action.badgeClass}`}>
-                        {action.priorityLabel}
-                      </span>
+                      <h3 className={`text-sm font-black tracking-wide ${isDone ? "line-through text-steel" : "text-ink"}`}>
+                        Action {action.step} - {action.title}
+                      </h3>
 
                       {/* Interactive checkbox */}
                       <button
                         type="button"
-                        onClick={() => toggleStep(idx)}
-                        className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-all ${
+                        onClick={() => toggleStep(action.step)}
+                        className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-all shrink-0 ${
                           isDone
                             ? "bg-mint/10 border-mint/30 text-mint"
                             : "bg-paper/40 border-line text-steel hover:text-ink hover:border-mint"
@@ -208,13 +134,27 @@ export default function ActionsPage() {
                       </button>
                     </div>
 
-                    <h3 className={`text-xs font-black uppercase tracking-wider ${isDone ? "line-through text-steel" : "text-ink"}`}>
-                      Action Step {action.step}: {action.title}
-                    </h3>
-
-                    <p className="text-xs text-steel leading-relaxed bg-paper/40 p-3 rounded-xl border border-line/60">
-                      {formatCurrencySymbols(action.body, sym, analysis.currency)}
-                    </p>
+                    <div className="text-xs text-steel leading-relaxed bg-paper/40 p-3 rounded-xl border border-line/60">
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-steel/70 mb-1">
+                        Description
+                      </span>
+                      {formatCurrencySymbols(visibleDescription, sym, analysis.currency)}
+                      {isLongDescription && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedDescriptions((current) => {
+                            const next = new Set(current);
+                            if (next.has(action.step)) next.delete(action.step);
+                            else next.add(action.step);
+                            return next;
+                          })}
+                          className="mt-2 block text-xs font-semibold text-mint hover:underline"
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? "Show less" : "Read full description"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

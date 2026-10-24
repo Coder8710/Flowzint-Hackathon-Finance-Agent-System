@@ -25,6 +25,7 @@ import { useAnalysis } from "@/components/AnalysisContext";
 import { AppShell } from "@/components/AppShell";
 import { MetricBar } from "@/components/MetricBar";
 import { TrendSparkline } from "@/components/TrendSparkline";
+import { sequenceActionItems } from "@/lib/actionItems";
 import { formatCurrencySymbols } from "@/lib/currency";
 import { CompanyAnalysis, AgentFinding } from "@/lib/types";
 
@@ -90,6 +91,7 @@ export default function OverviewPage() {
 
   const sym = analysis.symbol.split(".")[0];
   const base = `/analysis/${sym}`;
+  const actions = sequenceActionItems(analysis.action_items, analysis.recommendation);
   const technical = analysis.agents.find((a) => a.agent.includes("Technical"));
   const debate = (analysis as any).debate;
 
@@ -183,6 +185,8 @@ export default function OverviewPage() {
 
         {/* ── 3. Executive Preview: Investment Debate ── */}
         <div className="rounded-2xl glass-panel border border-line shadow-panel p-6 space-y-5">
+          {debate ? (
+            <>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-line pb-4">
             <div className="flex items-center gap-3">
               <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
@@ -289,10 +293,28 @@ export default function OverviewPage() {
               href={`${base}/debate`}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-mint hover:underline"
             >
-              <span>Explore Debate Dossiers & Cross-Examination Rounds</span>
+              <span>Explore the Bull and Bear Debate</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
+            </>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider text-ink">Bull and Bear Debate</h2>
+                <p className="mt-1 text-xs text-steel">
+                  Generate the evidence-based debate when you are ready to review both sides.
+                </p>
+              </div>
+              <Link
+                href={`${base}/debate`}
+                className="inline-flex items-center gap-2 rounded-lg border border-mint/30 bg-mint/10 px-3 py-2 text-xs font-bold text-mint hover:bg-mint/15"
+              >
+                <Scale className="h-4 w-4" />
+                Open debate
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* ── 4. Grid: Investment Thesis & Action Plan ── */}
@@ -331,7 +353,6 @@ export default function OverviewPage() {
                 </div>
               ))}
             </div>
-
             <div className="pt-4 border-t border-line mt-4">
               <Link
                 href={`${base}/thesis`}
@@ -361,29 +382,23 @@ export default function OverviewPage() {
             </div>
 
             <div className="space-y-3 flex-1">
-              {analysis.action_items.slice(0, 3).map((item, i) => (
-                <div key={i} className="p-3.5 rounded-xl border border-line bg-paper/40 flex items-start gap-3">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-mint/15 text-[10px] font-mono-data font-black text-mint">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 inline-block mb-1">
-                      {i === 0 ? "Priority 1 · Immediate" : i === 1 ? "Priority 2 · Risk Protocol" : "Priority 3 · Profit Target"}
-                    </span>
-                    <p className="text-xs font-medium text-ink leading-relaxed line-clamp-2">
-                      {formatCurrencySymbols(item, sym, analysis.currency)}
-                    </p>
-                  </div>
+              {actions.slice(0, 3).map((action) => (
+                <div key={action.sourceIndex} className="p-3.5 rounded-xl border border-line bg-paper/40 space-y-1.5">
+                  <p className="text-xs font-bold text-ink line-clamp-1">
+                    Action {action.step} - {action.title}
+                  </p>
+                  <p className="text-xs text-steel leading-relaxed line-clamp-2">
+                    {formatCurrencySymbols(action.description, sym, analysis.currency)}
+                  </p>
                 </div>
               ))}
             </div>
-
             <div className="pt-4 border-t border-line mt-4">
               <Link
                 href={`${base}/actions`}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-mint hover:underline"
               >
-                <span>View Complete Checklist & Tranche Rules</span>
+                <span>View all recommended steps</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>

@@ -119,7 +119,7 @@ def create_news_agent(llm: str, search_tool, scrape_tool) -> "Agent":
         tools=[search_tool, scrape_tool],
         verbose=False,
         memory=False,
-        max_iter=15,
+        max_iter=6,
         max_rpm=10,
         cache=True,
         allow_delegation=False,

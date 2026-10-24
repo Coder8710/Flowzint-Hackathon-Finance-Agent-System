@@ -4,7 +4,7 @@
 CrewAI crew orchestration for the Flowzint Finance Agent System.
 
 Upgrades over the original implementation:
-  - All agents use production kwargs (verbose=False, memory=True, max_iter=15,
+  - All agents use bounded production kwargs (verbose=False, memory=True, max_iter=6,
     max_rpm=10, cache=True, allow_delegation=False)
   - Agent definitions are imported from agent factory functions
   - Tasks have structured JSON expected_output schemas
@@ -445,18 +445,17 @@ class FinanceCrew:
                 f" + Sentiment not extreme-bearish\n"
                 f"  - 'Hold': Mixed signals, or thesis valid but entry timing poor, or risk elevated\n"
                 f"  - 'Sell': Fundamental deterioration OR technical breakdown + elevated risk score\n\n"
-                f"PHASE 5 - INVESTMENT THESIS (minimum 6 points, each point MUST be at least 60 words):\n"
-                f"STRICT RULE: Any thesis point shorter than 50 words will be REJECTED. Write substantive paragraphs, not bullet points.\n"
-                f"Each point structure: [Opening claim with specific number/metric] + [Evidence from specialist reports] + [Forward-looking implication for investor].\n\n"
-                f"  Point 1 - Fundamental Value (min 50 words): State valuation (P/E or EV/EBITDA), compare to sector average, name 1 competitor for context, and cite the key re-rating catalyst from the Fundamental Agent.\n\n"
-                f"  Point 2 - Growth Catalyst (min 50 words): Identify the top growth driver for next 12-24 months. Quantify it with a specific number. State probability of materialising and impact on stock price if it does.\n\n"
-                f"  Point 3 - Technical Setup (min 50 words): State the RSI reading, MACD signal, ideal entry zone, hard stop-loss price, and 12-month price target. Explain WHY each level matters (moving average, prior support, Fibonacci).\n\n"
-                f"  Point 4 - Competitive Moat (min 50 words): Name 1-2 direct competitors and compare a key metric. Rate the moat as wide/narrow/none and justify with one specific structural advantage this company has over peers.\n\n"
-                f"  Point 5 - Risk vs Reward (min 50 words): State the bull case price target with % upside, the bear case stop-loss with % downside, and the reward-to-risk ratio. Recommend a position size % suited to this client's risk tolerance.\n\n"
-                f"  Point 6 - Macro Context (min 50 words): Name 1-2 specific macro variables (RBI/Fed rate cycle, currency, commodity) affecting this sector right now and explain precisely how each one impacts this company's earnings and stock price.\n\n"
+                f"PHASE 5 - INVESTMENT THESIS (6 concise points, 20-35 words each):\n"
+                f"Use one clear claim, a supplied metric or specialist finding, and its investor implication. Do not repeat the same evidence across points.\n\n"
+                f"  Point 1 - Fundamental Value: use available valuation data and the key catalyst.\n"
+                f"  Point 2 - Growth Catalyst: give the best-supported growth driver and timeframe.\n"
+                f"  Point 3 - Technical Setup: state the strongest supplied trend or level signal.\n"
+                f"  Point 4 - Competitive Position: summarize the moat evidence or state that it is unavailable.\n"
+                f"  Point 5 - Risk vs Reward: connect the key risk to the user's risk profile.\n"
+                f"  Point 6 - Macro Context: include only a relevant, supplied macro factor.\n\n"
                 f"PHASE 6 - NEXT ACTION ITEMS (5 specific, time-bound investor instructions ranked strictly by importance):\n"
                 f"Rank all actions in order of importance / urgency (the most important action MUST come first, then second, and so on).\n"
-                f"Each action MUST contain: exact verb + specific price level or metric + specific date or named event + one-sentence rationale.\n"
+                f"Each action MUST be a concise sentence with a clear verb and a supplied price, trigger, or event when available. Never invent dates or metrics.\n"
                 f"Generic actions like 'Monitor the stock' are not acceptable. Be precise enough that the investor can act immediately.\n\n"
                 f"Good example: 'Set a GTC limit buy at Rs 1840 (200-DMA support), to be reviewed on Q2FY25 earnings day (expected late October),"
                 f"because this level has held as demand zone three times in 18 months and a bounce here confirms the bull thesis.'\n\n"
@@ -469,14 +468,14 @@ class FinanceCrew:
                 f"Return ONLY valid raw JSON - no markdown wrappers. The JSON must exactly match:\n"
                 f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "Bull case: Rs X (+Y%), Base case: Rs X, Bear case: Rs X (-Y%)", '
                 f'"summary": "4-5 sentence executive summary with conviction level HIGH/MEDIUM/LOW", '
-                f'"thesis": ["50+ word point 1", "50+ word point 2", "50+ word point 3", "50+ word point 4", "50+ word point 5", "50+ word point 6"], '
+                f'"thesis": ["concise point 1", "concise point 2", "concise point 3", "concise point 4", "concise point 5", "concise point 6"], '
                 f'"action_items": ["specific action 1 with price+date", "specific action 2", "specific action 3", "specific action 4", "specific action 5"]}}'
             ),
             expected_output=(
                 "A raw, parsable JSON object with keys: recommendation (Buy|Hold|Sell), "
                 "target_bias (bull/base/bear case price targets with specific % moves), "
                 "summary (3-4 sentence executive summary with specific metrics and conviction level HIGH/MEDIUM/LOW), "
-                "thesis (list of 6 investment points, each minimum 40 words with a specific metric and forward-looking implication), "
+                "thesis (list of 6 concise investment points grounded in supplied evidence), "
                 "action_items (list of 5 specific time-bound actions, each minimum 25 words, each with a price level or trigger condition)."
             ),
         )

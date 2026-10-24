@@ -53,7 +53,7 @@ class DebateSystemTests(unittest.TestCase):
         ])
         payload = self.system._evidence_payload(analysis)
         self.assertEqual(payload["symbol"], analysis.symbol)
-        self.assertEqual(payload["system1_recommendation"], analysis.recommendation)
+        self.assertEqual(payload["committee_recommendation"], analysis.recommendation)
         self.assertEqual(payload["specialist_findings"][0]["agent"], analysis.agents[0].agent)
         self.assertEqual(payload["news"][0]["title"], "Quarterly results")
         self.assertNotIn("fresh_market_data", payload)
