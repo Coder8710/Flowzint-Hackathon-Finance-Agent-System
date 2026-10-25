@@ -102,3 +102,4 @@ Accepts a completed System 1 `CompanyAnalysis` JSON object and returns a `Debate
 ## Notes
 
 This is research support, not financial advice. Live data depends on upstream providers and API availability. If live requests or CrewAI credentials are unavailable, the backend returns deterministic fallback analysis so the demo remains usable offline. System 2 labels its fallback as `deterministic_fallback`; that path is rule-based evidence triage, not a generated LLM debate.
+
