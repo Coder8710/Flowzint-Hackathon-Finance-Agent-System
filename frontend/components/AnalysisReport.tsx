@@ -430,7 +430,12 @@ export function AnalysisReport({ analysis, overrideCompanyName }: { analysis: Co
 
         {/* Wide Trend Chart */}
         <div className="flex flex-col justify-between h-full min-h-[260px]">
-          <TrendSparkline symbol={symbol} history={technical?.data.history} currency={analysis.currency} />
+          <TrendSparkline
+            symbol={symbol}
+            history={technical?.data.history}
+            currency={analysis.currency}
+            historyIsSimulated={technical?.data.history_is_simulated === true}
+          />
         </div>
       </div>
 

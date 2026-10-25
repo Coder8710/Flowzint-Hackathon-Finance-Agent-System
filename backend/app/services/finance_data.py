@@ -23,6 +23,7 @@ class MarketSnapshot:
     beta: float | None
     currency: str
     history: list[dict[str, float | str]]
+    history_is_simulated: bool
 
 
 class FinanceDataService:
@@ -64,7 +65,14 @@ class FinanceDataService:
                     "volume": float(row["Volume"]),
                 }
                 for index, row in history_frame.tail(120).iterrows()
+                if all(_to_float(row[column]) is not None for column in ("Open", "High", "Low", "Close", "Volume"))
             ]
+            # Yahoo can return an empty or one-row frame without raising. The
+            # UI needs at least two points for a trend line, so use the same
+            # deterministic fallback as other Yahoo failures in that case.
+            if len(history) < 2:
+                return self._fallback_snapshot(symbol)
+
             price = None
             if "currentPrice" in info and info["currentPrice"] is not None:
                 price = float(info["currentPrice"])
@@ -98,6 +106,7 @@ class FinanceDataService:
                 beta=_to_float(info.get("beta")),
                 currency=str(info.get("currency") or "USD"),
                 history=history,
+                history_is_simulated=False,
             )
         except Exception:
             return self._fallback_snapshot(symbol)
@@ -148,6 +157,7 @@ class FinanceDataService:
             beta=round(rng.uniform(0.75, 1.95), 2),
             currency="INR" if symbol.endswith((".NS", ".BO")) else "USD",
             history=history,
+            history_is_simulated=True,
         )
 
 

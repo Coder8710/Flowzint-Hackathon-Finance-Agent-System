@@ -178,6 +178,7 @@ export default function OverviewPage() {
                 symbol={sym}
                 history={technical?.data.history}
                 currency={analysis.currency}
+                historyIsSimulated={technical?.data.history_is_simulated === true}
               />
             </div>
           </div>

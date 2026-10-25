@@ -8,6 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Disable EC2 metadata service globally to prevent boto3/botocore connection hangs on local machines
 os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
+# LiteLLM otherwise tries to download its pricing/context map on import. Use
+# the package's bundled map by default so offline DNS failures do not emit a
+# warning; deployments can opt back into the remote map with an env override.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
 logger = logging.getLogger(__name__)
 

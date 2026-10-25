@@ -2,9 +2,10 @@ type TrendSparklineProps = {
   symbol?: string;
   history?: unknown;
   currency?: string;
+  historyIsSimulated?: boolean;
 };
 
-export function TrendSparkline({ symbol, history, currency }: TrendSparklineProps) {
+export function TrendSparkline({ symbol, history, currency, historyIsSimulated }: TrendSparklineProps) {
   const rows = Array.isArray(history) ? history : [];
   const closes = rows
     .map((row) => (typeof row === "object" && row && "close" in row ? Number(row.close) : NaN))
@@ -50,6 +51,11 @@ export function TrendSparkline({ symbol, history, currency }: TrendSparklineProp
     <div className="rounded-xl glass-panel p-4 animate-fade-in card-hover">
       <div className="flex items-center justify-between px-1 mb-2.5">
         <span className="text-xs font-bold text-steel uppercase tracking-wider">Historical Trend</span>
+        {historyIsSimulated && (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400" title="Yahoo Finance did not provide enough history; this chart uses deterministic sample data.">
+            Simulated data
+          </span>
+        )}
         <span className={`font-mono-data text-sm font-bold flex items-center gap-1 ${isPositive ? "text-mint" : "text-berry"}`}>
           {isPositive ? "▲" : "▼"} {currencySymbol}{closes[closes.length - 1].toFixed(2)}
         </span>

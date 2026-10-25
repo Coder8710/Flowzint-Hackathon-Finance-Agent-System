@@ -33,7 +33,13 @@ class TechnicalAnalysisAgent:
                 summary="Technical history is too short for reliable indicators.",
                 confidence=0.35,
                 signals=["Need at least 30 closing prices to compute trend indicators."],
-                data={"score": 50},
+                # Even a short price series is useful to render the chart;
+                # only the indicator calculations require 30 observations.
+                data={
+                    "score": 50,
+                    "history": snapshot.history[-60:],
+                    "history_is_simulated": snapshot.history_is_simulated,
+                },
             )
 
         rsi = _rsi(closes[-15:])
@@ -92,6 +98,7 @@ class TechnicalAnalysisAgent:
                 "key_support": round(support, 2),
                 "key_resistance": round(resistance, 2),
                 "history": snapshot.history[-60:],
+                "history_is_simulated": snapshot.history_is_simulated,
             },
         )
 

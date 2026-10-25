@@ -189,12 +189,26 @@ class MasterAgent:
                             confidence = 0.80
                             score = int(data_dict.get("fit_score", 50))
 
+                        merged_data = {**a.data, **data_dict}
+                        if key == "technical":
+                            original_history = a.data.get("history")
+                            # Keep the source price series if the LLM omits or
+                            # invents a different one; its indicator JSON is
+                            # not the chart data source.
+                            if isinstance(original_history, list) and len(original_history) >= 2:
+                                merged_data["history"] = original_history
+                            elif not isinstance(merged_data.get("history"), list):
+                                merged_data["history"] = []
+                            merged_data["history_is_simulated"] = bool(
+                                a.data.get("history_is_simulated", False)
+                            )
+
                         dynamic_agents.append(AgentFinding(
                             agent=a.agent,
                             summary=summary,
                             confidence=round(max(0.1, min(1.0, confidence)), 2),
                             signals=signals,
-                            data={**a.data, **data_dict}
+                            data=merged_data,
                         ))
                     else:
                         dynamic_agents.append(a)
