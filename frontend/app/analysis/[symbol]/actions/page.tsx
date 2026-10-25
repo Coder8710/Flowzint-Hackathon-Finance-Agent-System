@@ -89,10 +89,10 @@ export default function ActionsPage() {
         <div className="space-y-3.5">
           {actions.map((action) => {
             const isDone = completedSteps.has(action.step);
-            const isLongDescription = action.description.length > 260;
+            const isLongDescription = action.description.length > 900;
             const isExpanded = expandedDescriptions.has(action.step);
             const visibleDescription = isLongDescription && !isExpanded
-              ? `${action.description.slice(0, 240).trimEnd()}…`
+              ? `${action.description.slice(0, 850).trimEnd()}…`
               : action.description;
             return (
               <div
@@ -114,7 +114,7 @@ export default function ActionsPage() {
                   {/* Content */}
                   <div className="min-w-0 flex-1 space-y-2.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <h3 className={`text-sm font-black tracking-wide ${isDone ? "line-through text-steel" : "text-ink"}`}>
+                      <h3 className={`text-base font-black tracking-wide ${isDone ? "line-through text-steel" : "text-ink"}`}>
                         Action {action.step} - {action.title}
                       </h3>
 
@@ -134,7 +134,7 @@ export default function ActionsPage() {
                       </button>
                     </div>
 
-                    <div className="text-xs text-steel leading-relaxed bg-paper/40 p-3 rounded-xl border border-line/60">
+                    <div className="text-sm sm:text-base text-steel leading-7 bg-paper/40 p-4 rounded-xl border border-line/60">
                       <span className="block text-[10px] font-bold uppercase tracking-wider text-steel/70 mb-1">
                         Description
                       </span>
@@ -148,7 +148,7 @@ export default function ActionsPage() {
                             else next.add(action.step);
                             return next;
                           })}
-                          className="mt-2 block text-xs font-semibold text-mint hover:underline"
+                          className="mt-2 block text-sm font-semibold text-mint hover:underline"
                           aria-expanded={isExpanded}
                         >
                           {isExpanded ? "Show less" : "Read full description"}

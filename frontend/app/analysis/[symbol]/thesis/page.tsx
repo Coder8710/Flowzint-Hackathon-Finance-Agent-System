@@ -32,11 +32,8 @@ function PillarCard({
   const config = PILLAR_CONFIG[index] || { icon: "📌", title: `Strategic Pillar ${index + 1}` };
 
   const fullText = String(text ?? "").trim();
-  const sentenceEnd = fullText.search(/[.!?]\s/);
-  const previewEnd = sentenceEnd > 0 && sentenceEnd <= 220
-    ? sentenceEnd + 1
-    : fullText.length > 220
-    ? fullText.lastIndexOf(" ", 220)
+  const previewEnd = fullText.length > 1120
+    ? fullText.lastIndexOf(" ", 1120)
     : fullText.length;
   const preview = previewEnd > 0 && previewEnd < fullText.length
     ? `${fullText.slice(0, previewEnd).trimEnd()}…`
@@ -82,7 +79,7 @@ function PillarCard({
 
       <div
         id={detailId}
-        className="bg-paper/40 border border-line/60 rounded-xl p-3.5 text-xs font-medium text-ink leading-relaxed"
+        className="bg-paper/40 border border-line/60 rounded-xl p-4 text-sm sm:text-base font-medium text-ink leading-7"
       >
         {formatCurrencySymbols(open ? fullText : preview, symbol, currency)}
       </div>

@@ -406,117 +406,188 @@ def _bias_from_score(score: float) -> str:
 
 
 def _top_thesis(agents: list) -> list[str]:
-    """Generate structured, understandable investment thesis pillars from agent data."""
+    """Build explanatory, evidence-grounded thesis pillars for the fallback report."""
     pillars: list[str] = []
 
     for agent in agents:
         name = agent.agent
         data = agent.data or {}
-        summary = agent.summary or ""
+        summary = agent.summary or "No summary was returned."
+        signals = [str(item).strip() for item in (agent.signals or []) if str(item).strip()]
 
         if "Fundamental" in name:
-            pe = data.get("pe_ratio", "N/A")
-            intrinsic = data.get("intrinsic_value_estimate", "N/A")
-            score = data.get("score", 50)
-            if intrinsic and intrinsic != "N/A":
-                pillars.append(
-                    f"📊 Valuation: Intrinsic value estimated at {intrinsic}. "
-                    f"P/E ratio is {pe}. Fundamental score: {score}/100. "
-                    f"Investor takeaway — {summary}"
-                )
-            else:
-                pillars.append(f"📊 Valuation: {summary} (Fundamental score: {score}/100)")
+            metrics = []
+            for key, label in (("pe_ratio", "P/E"), ("revenue_growth", "revenue growth"),
+                               ("profit_margin", "profit margin"), ("debt_to_equity", "debt-to-equity")):
+                value = data.get(key)
+                if value is None:
+                    continue
+                if key in {"revenue_growth", "profit_margin"}:
+                    value = f"{float(value) * 100:.1f}%"
+                metrics.append(f"{label}: {value}")
+            evidence = "; ".join(metrics) or "; ".join(signals[:3]) or "fundamental data is limited"
+            pillars.append(
+                f"Fundamental picture: {summary} The available evidence includes {evidence}. "
+                "These measures describe recent business performance and valuation, but they do not alone establish fair value or guarantee future growth. "
+                "P/E compares the share price with current earnings, while revenue growth shows sales expansion rather than the amount of cash ultimately earned. "
+                "Margins help test whether growth is profitable, and debt affects how much flexibility the company has if conditions weaken. "
+                "Use the strongest positive and negative measures together, then check whether upcoming reported results continue to support the investment case. "
+                "Where peer comparisons or cash-flow measures are unavailable, treat the valuation conclusion as uncertain and seek that evidence before relying on it."
+            )
 
         elif "Technical" in name:
-            trend = data.get("trend_direction", "neutral")
-            signal = data.get("signal", "neutral")
-            rsi = data.get("rsi_14", "N/A")
-            support = data.get("key_support", "N/A")
-            resistance = data.get("key_resistance", "N/A")
+            trend = data.get("trend_direction", "unclear")
+            signal = data.get("signal", "wait")
+            rsi = data.get("rsi_reading", data.get("rsi_14"))
+            support = data.get("key_support")
+            resistance = data.get("key_resistance")
+            levels = []
+            if rsi is not None: levels.append(f"RSI is {rsi}")
+            if support is not None: levels.append(f"support is {support}")
+            if resistance is not None: levels.append(f"resistance is {resistance}")
+            if data.get("sma_20") is not None and data.get("sma_50") is not None:
+                levels.append(f"20-day and 50-day averages are {data['sma_20']} and {data['sma_50']}")
+            indicator_text = "; ".join(levels) or "; ".join(signals[:3]) or "indicator and price-level data are limited"
             pillars.append(
-                f"📈 Technical Trend: Price trend is {trend} with a {signal} signal. "
-                f"RSI(14): {rsi}. Key support: {support}, resistance: {resistance}."
+                f"Technical picture: {summary} The measured trend is {trend} and the current signal is {signal}; {indicator_text}. "
+                "A sustained move above resistance or a confirmed improving trend would strengthen the setup, while a break below support would weaken it. "
+                "RSI describes recent momentum; a high or low reading can persist and does not by itself predict a reversal. "
+                "Moving averages help show trend direction but react after prices have moved, so combine them with current price behavior and company evidence. "
+                "Treat these levels as checkpoints that can change with new prices, and use them to plan entries and risk limits rather than as guaranteed predictions. "
+                "Reassess the setup if price action contradicts the signal or if fresh data changes the support and resistance zones."
             )
 
         elif "News" in name:
-            score = data.get("score", 50)
-            top_signal = agent.signals[0] if agent.signals else summary
+            score = data.get("score", data.get("sentiment_score", 50))
+            headline_text = "; ".join(signals[:3]) or summary
             pillars.append(
-                f"📰 Top Catalyst: {top_signal} (News sentiment score: {score}/100)"
+                f"News and catalysts: {summary} The most relevant available reports are: {headline_text}. The news score is {score}/100 and summarizes direction, not the size or certainty of a future effect. "
+                "A headline may describe an event without showing its effect on revenue, margins, or cash flow, and early reports can omit important context. "
+                "Check the original announcement, its date and source, and whether company guidance or reported results confirm the expectation it creates. "
+                "Until that evidence arrives, treat the catalyst as a factor to monitor rather than a confirmed change in value. "
+                "If later information disagrees with the headline, update the thesis using the newer, more direct evidence."
             )
 
         elif "Sentiment" in name:
-            sent_score = data.get("sentiment_score", 0)
-            fear_greed = data.get("fear_greed_proxy", "neutral")
+            score = data.get("sentiment_score", data.get("score", 50))
+            mood = data.get("fear_greed_proxy", "neutral")
             contrarian = data.get("contrarian_signal", False)
+            signal_text = "; ".join(signals[:3]) or f"market mood is {mood} with a sentiment score of {score}/100"
+            contrarian_text = (
+                "A contrarian signal is present, which can mean crowded positioning may amplify a reversal."
+                if contrarian else "No contrarian signal was detected in the available data."
+            )
             pillars.append(
-                f"💬 Market Sentiment: Score {sent_score}/100, mood is {fear_greed}. "
-                f"{'⚠️ Contrarian signal detected — crowd may be wrong.' if contrarian else 'No contrarian signal.'}"
+                f"Market sentiment: {summary} The reported signals are {signal_text}. {contrarian_text} "
+                "Sentiment describes market attention and positioning, not the company's intrinsic value or future returns, and social or survey signals can be noisy. "
+                "A crowded positive mood can leave less room for favorable surprises, while a very negative mood can persist if business results deteriorate. "
+                "Use it as context, identify what evidence could change the mood, and look for confirmation from financial results and price action before changing an investment view. "
+                "If the sentiment feed is incomplete, place less weight on it and prioritize verifiable company information."
             )
 
         elif "Risk" in name:
-            risk_score = data.get("risk_score", 50)
-            risks = data.get("risks", [])
-            risk_summary = risks[0] if risks else "No major risks flagged."
-            level = "Low" if risk_score < 35 else "Moderate" if risk_score < 65 else "Elevated"
+            score = int(data.get("risk_score", 50))
+            risks = data.get("risks") or signals
+            risk_text = "; ".join(str(item) for item in risks[:2]) or "No specific risk item was returned."
+            level = "low" if score < 35 else "moderate" if score < 65 else "elevated"
             pillars.append(
-                f"🛡️ Risk Profile: {level} risk ({risk_score}/100). Key risk — {risk_summary}"
+                f"Risk picture: {summary} The measured risk level is {level} ({score}/100), with these reported concerns: {risk_text}. "
+                "A higher score calls for stronger evidence and tighter limits on exposure; it is a screening signal, not a prediction that a loss will occur. "
+                "Separate risks that may affect long-term business value from short-term price volatility, since they call for different responses. "
+                "Before acting, consider how each concern could affect the thesis, how much loss the position could create, and what evidence would make you reduce exposure or reassess it. "
+                "Review the risk items again when material company news or updated financial data becomes available."
             )
 
         elif "Portfolio" in name:
-            fit_score = data.get("fit_score", 50)
-            advice = data.get("allocation_advice", summary)
+            score = data.get("fit_score", 50)
+            advice = data.get("allocation_advice") or summary
+            rationale = data.get("rationale") or signals
+            rationale_text = "; ".join(str(item) for item in rationale[:2]) or "No additional portfolio rationale was provided."
             pillars.append(
-                f"🎯 Portfolio Fit: Suitability score {fit_score}/100. {advice}"
+                f"Portfolio fit: The suitability score is {score}/100. {advice} Supporting considerations include {rationale_text}. "
+                "This assessment depends on the stated risk tolerance, investment horizon, and any portfolio context supplied by the user. "
+                "A fit score does not account for holdings or obligations that were not provided, and it cannot guarantee that an allocation is appropriate in every market condition. "
+                "Compare the suggested exposure with existing positions in the same sector and with the time available to recover from a decline. "
+                "Treat the suggested allocation as a starting point and keep the position sized so that a downside scenario would not overwhelm the rest of the portfolio."
             )
 
-    # Deduplicate while preserving order
-    unique_pillars: list[str] = []
-    for p in pillars:
-        if p not in unique_pillars:
-            unique_pillars.append(p)
-    return unique_pillars[:6]
+    return pillars[:6]
 
 
 def _action_items(symbol: str, recommendation: str, risk_score: int, agents: list) -> list[str]:
-    tech_data = next((a.data for a in agents if "Technical" in a.agent), {})
-    fund_data = next((a.data for a in agents if "Fundamental" in a.agent), {})
-    port_data = next((a.data for a in agents if "Portfolio" in a.agent), {})
-    
+    """Create useful, multi-sentence steps when the LLM committee is unavailable."""
+    tech_data = next((agent.data for agent in agents if "Technical" in agent.agent), {})
+    fund_data = next((agent.data for agent in agents if "Fundamental" in agent.agent), {})
+    port_data = next((agent.data for agent in agents if "Portfolio" in agent.agent), {})
     support = tech_data.get("key_support")
     resistance = tech_data.get("key_resistance")
     intrinsic = fund_data.get("intrinsic_value_estimate")
-    
-    items = []
-    
-    if support and resistance:
-        items.append(f"Monitor price action at key technical levels: Support at {support}, Resistance at {resistance}.")
-        
-    if intrinsic and intrinsic != "N/A":
-        items.append(f"Compare current market price against the fundamental intrinsic value estimate of {intrinsic}.")
-        
-    if recommendation == "Buy":
-        strategy = port_data.get('entry_strategy', 'staged_3_tranches').replace('_', ' ')
-        items.append(f"Implement a '{strategy}' entry plan as advised by the portfolio agent.")
-    elif recommendation == "Sell":
-        pe = fund_data.get('pe_ratio', 'current')
-        items.append(f"Review whether downside risk or overvaluation (P/E: {pe}) outweighs your investment thesis.")
-    else:
-        trend = tech_data.get('trend_direction', 'neutral')
-        items.append(f"Wait for clearer confirmation from price trend (currently {trend}) or fundamental catalysts.")
-        
-    if risk_score > 65:
-        items.append(f"Use strict position sizing and set hard stop-losses because the risk score is elevated at {risk_score}/100.")
-        
-    trigger = port_data.get("rebalancing_trigger")
-    if trigger:
-        items.append(trigger)
-        
-    if len(items) < 5:
-        items.append(f"Track upcoming earnings and guidance revisions for {symbol} to confirm thesis.")
-        
-    return items[:5]
+    strategy = str(port_data.get("entry_strategy", "staged entry")).replace("_", " ")
 
+    if recommendation == "Sell":
+        first = (
+            f"Reduce or exit: Review the {symbol} position for reduction or exit in light of the Sell assessment. "
+            "Compare the original reason for owning it with the current fundamental and technical evidence, and avoid adding exposure until the thesis is reassessed. "
+            "Record which new evidence would change this decision, and check whether the risk and price signals that prompted the Sell view remain present."
+        )
+    elif recommendation == "Buy":
+        level_note = f"Use support near {support} as a review zone" if support is not None else "Wait for a clear entry level to be established from current price data"
+        first = (
+            f"Stage entry: Plan any new {symbol} position using the portfolio agent's {strategy} approach. {level_note}; do not commit the full intended allocation at once or chase a sharp move. "
+            "This staged approach reduces timing risk while leaving room to add only if the evidence and entry conditions remain supportive. Recheck the latest price and thesis before each tranche."
+        )
+    else:
+        first = (
+            f"Wait for confirmation: Keep {symbol} on a watchlist and wait for clearer confirmation before opening or increasing a position. "
+            "Look for improving company evidence alongside a technical signal that supports the thesis; a single positive headline is not enough. "
+            "Revisit the decision when one of those conditions changes, and compare the new evidence with the reason for the current Hold view."
+        )
+
+    items = [first]
+    risk_signals = next((agent.signals for agent in agents if "Risk" in agent.agent), [])
+    risk_detail = "; ".join(str(item) for item in risk_signals[:2]) or "the risk factors identified in the report"
+    items.append(
+        f"Risk limits: Set a position-size limit and a clear reassessment or stop level before acting; the current risk score is {risk_score}/100. "
+        f"Account for {risk_detail}. If the chosen level is reached, review the thesis and exposure instead of making an impulsive decision. "
+        "Write down the trigger in advance so the response is consistent with the risk tolerance used in this report."
+    )
+
+    if resistance is not None:
+        items.append(
+            f"Manage upside: At resistance near {resistance}, reassess the risk/reward and whether the original upside case still has room to play out. "
+            "If the price stalls or the evidence weakens, consider whether to pause additional buying or protect gains; do not treat resistance as a guaranteed target. "
+            "Compare the move with the original thesis and review the next available company update before changing the position."
+        )
+    elif intrinsic and intrinsic != "N/A":
+        items.append(
+            f"Check valuation: Compare the current market price with the report's screening estimate of {intrinsic} and review the assumptions behind it. "
+            "The estimate is a reference point, not a precise fair value; check whether revenue, margins, and debt evidence justify any apparent gap before acting. "
+            "If those inputs are stale or incomplete, wait for updated figures rather than treating the estimate as a price target."
+        )
+    else:
+        items.append(
+            "Earnings check: Review the next available company results for changes in revenue, margins, and management guidance. "
+            "Compare those results with the evidence supporting the current view, and wait for a measurable improvement or deterioration before changing the plan. "
+            "Note which figure changed and whether the change affects the original investment rationale."
+        )
+
+    if intrinsic and intrinsic != "N/A" and len(items) < 4:
+        items.append(
+            f"Check valuation: Compare the market price with the screening estimate of {intrinsic}, then check the underlying growth and profitability evidence. "
+            "A difference alone is not a buy or sell signal; confirm that the assumptions behind the estimate remain reasonable. "
+            "If the required data is missing or outdated, record that limitation and defer a valuation-based decision until it can be checked."
+        )
+    elif not intrinsic or intrinsic == "N/A":
+        items.append(
+            "Review valuation using the company's reported earnings, revenue trend, and profitability when those figures become available. "
+            "The report has no reliable intrinsic-value estimate, so avoid treating an unsupported target as a decision point; compare the next results with current expectations instead."
+        )
+    items.append(
+        f"Thesis break: Recheck the {symbol} thesis when new results or material company news arrive. "
+        "If the financial evidence deteriorates, the expected catalyst fails to appear, or the key technical level breaks, document which assumption changed and reassess the position before taking the next step."
+        " Compare the new evidence with the original case so the decision reflects what changed rather than the share-price move alone."
+    )
+    return items[:5]
 
 def _build_overall_summary(analyses: list[CompanyAnalysis]) -> str:
     if len(analyses) == 1:
@@ -546,8 +617,8 @@ def create_master_agent(llm: str) -> "Agent":
             '  "recommendation": "Buy|Hold|Sell",\n'
             '  "target_bias": "String describing upside/downside",\n'
             '  "summary": "1 paragraph executive summary",\n'
-            '  "thesis": ["point 1", "point 2", "point 3"],\n'
-            '  "action_items": ["action 1", "action 2", "action 3"]\n'
+            '  "thesis": ["140-170 word point 1", "140-170 word point 2", "140-170 word point 3", "140-170 word point 4", "140-170 word point 5", "140-170 word point 6"],\n'
+            '  "action_items": ["Short title: 85-110 word explanation 1", "Short title: explanation 2", "Short title: explanation 3", "Short title: explanation 4", "Short title: explanation 5"]\n'
             "}\n"
             "Do NOT wrap the JSON in markdown code fences. Return ONLY the raw JSON object."
         ),

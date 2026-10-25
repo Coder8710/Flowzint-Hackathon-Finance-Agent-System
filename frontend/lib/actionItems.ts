@@ -49,29 +49,42 @@ function cleanAction(raw: string, sourceIndex: number): { title: string; descrip
   }
 
   let title = "";
-  let splitAt = -1;
+  let description = "";
   const colonAt = text.indexOf(":");
-  if (colonAt > 0 && colonAt <= 90) splitAt = colonAt;
-  if (splitAt < 0) {
-    const clause = text.search(/[,;.!?]|\b(?:because|when|once|after|before)\b/i);
-    if (clause > 0 && clause <= 90) splitAt = clause;
+  if (colonAt > 0 && colonAt <= 100) {
+    // New reports use an explicit "Short title: explanation" separator.
+    // Keep the description offset tied to the original text, not a title that
+    // may later be shortened for display.
+    title = text.slice(0, colonAt).trim();
+    description = text.slice(colonAt + 1).trim();
+  } else {
+    const clause = text.search(/[,;]|\b(?:because|when|if|once|after|before)\b/i);
+    if (clause > 0 && clause <= 75) {
+      title = text.slice(0, clause).trim();
+      description = text.slice(clause).replace(/^[,;\s]+/, "").trim();
+    } else {
+      const words = text.split(/\s+/);
+      if (words.length > 8) {
+        title = words.slice(0, 6).join(" ");
+        description = words.slice(6).join(" ");
+      } else {
+        title = text;
+      }
+    }
   }
 
-  if (splitAt > 0) title = text.slice(0, splitAt).trim();
-  if (!title) {
-    const words = text.split(/\s+/);
-    title = words.slice(0, 8).join(" ");
-    if (words.length > 8) title += "...";
-  }
   if (title.length > 76) {
-    const cutoff = title.lastIndexOf(" ", 73);
-    title = `${title.slice(0, cutoff > 35 ? cutoff : 73).trimEnd()}...`;
+    const cutoff = title.lastIndexOf(" ", 72);
+    title = `${title.slice(0, cutoff > 30 ? cutoff : 72).trimEnd()}…`;
   }
 
-  const description = text.slice(title.endsWith("...") ? title.length - 3 : title.length).replace(/^[\s,:;.!?-]+/, "").trim();
+  description = description
+    .replace(/^Action\s*(?:Step\s*)?\d+\s*(?:\([^)]*\)\s*)?[-:]\s*/i, "")
+    .replace(/^[\s,:;.!?-]+/, "")
+    .trim();
   return {
     title: title || `Action ${sourceIndex + 1}`,
-    description: description || "Follow this instruction as written.",
+    description: description || "Follow this step, then confirm its trigger and rationale before acting.",
   };
 }
 

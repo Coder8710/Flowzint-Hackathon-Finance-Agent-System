@@ -445,17 +445,18 @@ class FinanceCrew:
                 f" + Sentiment not extreme-bearish\n"
                 f"  - 'Hold': Mixed signals, or thesis valid but entry timing poor, or risk elevated\n"
                 f"  - 'Sell': Fundamental deterioration OR technical breakdown + elevated risk score\n\n"
-                f"PHASE 5 - INVESTMENT THESIS (6 concise points, 20-35 words each):\n"
-                f"Use one clear claim, a supplied metric or specialist finding, and its investor implication. Do not repeat the same evidence across points.\n\n"
-                f"  Point 1 - Fundamental Value: use available valuation data and the key catalyst.\n"
-                f"  Point 2 - Growth Catalyst: give the best-supported growth driver and timeframe.\n"
-                f"  Point 3 - Technical Setup: state the strongest supplied trend or level signal.\n"
-                f"  Point 4 - Competitive Position: summarize the moat evidence or state that it is unavailable.\n"
-                f"  Point 5 - Risk vs Reward: connect the key risk to the user's risk profile.\n"
-                f"  Point 6 - Macro Context: include only a relevant, supplied macro factor.\n\n"
-                f"PHASE 6 - NEXT ACTION ITEMS (5 specific, time-bound investor instructions ranked strictly by importance):\n"
+                f"PHASE 5 - INVESTMENT THESIS (6 substantial explanations, 140-170 words each):\n"
+                f"Each point MUST be a developed paragraph of 6-8 complete sentences, not a short summary. Explain the claim, specific supplied evidence and its context, what it means for this company, why it matters to the investor, the strongest counterpoint or uncertainty, and what evidence should be checked next. Use only supplied data; explicitly identify missing evidence instead of guessing. Do not repeat the same facts across pillars or pad with generic advice.\n\n"
+                f"  Point 1 - Fundamental Value: explain available valuation measures, their limits, and the strongest financial catalyst.\n"
+                f"  Point 2 - Growth Catalyst: connect the supported growth driver to the company's reported performance and timeframe.\n"
+                f"  Point 3 - Technical Setup: explain trend, momentum, support/resistance, and what confirmation or breakdown would mean.\n"
+                f"  Point 4 - Competitive Position: use supplied moat or peer evidence and explain its business implication.\n"
+                f"  Point 5 - Risk vs Reward: explain key downside scenarios and how they relate to the user's risk profile.\n"
+                f"  Point 6 - Macro Context: connect supplied macro or sector evidence to company performance; state when evidence is unavailable.\n\n"
+                f"PHASE 6 - NEXT ACTION ITEMS (5 detailed investor instructions ranked in the order the investor should follow):\n"
                 f"Rank all actions in order of importance / urgency (the most important action MUST come first, then second, and so on).\n"
-                f"Each action MUST be a concise sentence with a clear verb and a supplied price, trigger, or event when available. Never invent dates or metrics.\n"
+                f"Each action string MUST use this format: Short action title (3-8 words): detailed explanation. Keep the title distinct from the explanation and do not repeat it at the start of the explanation.\n"
+                f"The explanation MUST be 85-110 words in 5-7 useful sentences. State what to do, the supplied price/metric/event trigger, why that trigger matters, how to carry out the step, what would change the plan, and what to check next. Never invent dates or metrics. If a trigger is unavailable, say so and identify the evidence to monitor. Avoid filler and repeated advice.\n"
                 f"Generic actions like 'Monitor the stock' are not acceptable. Be precise enough that the investor can act immediately.\n\n"
                 f"Good example: 'Set a GTC limit buy at Rs 1840 (200-DMA support), to be reviewed on Q2FY25 earnings day (expected late October),"
                 f"because this level has held as demand zone three times in 18 months and a bounce here confirms the bull thesis.'\n\n"
@@ -468,15 +469,15 @@ class FinanceCrew:
                 f"Return ONLY valid raw JSON - no markdown wrappers. The JSON must exactly match:\n"
                 f'{{"recommendation": "Buy|Hold|Sell", "target_bias": "Bull case: Rs X (+Y%), Base case: Rs X, Bear case: Rs X (-Y%)", '
                 f'"summary": "4-5 sentence executive summary with conviction level HIGH/MEDIUM/LOW", '
-                f'"thesis": ["concise point 1", "concise point 2", "concise point 3", "concise point 4", "concise point 5", "concise point 6"], '
-                f'"action_items": ["specific action 1 with price+date", "specific action 2", "specific action 3", "specific action 4", "specific action 5"]}}'
+                f'"thesis": ["140-170 word explanation 1", "140-170 word explanation 2", "140-170 word explanation 3", "140-170 word explanation 4", "140-170 word explanation 5", "140-170 word explanation 6"], '
+                f'"action_items": ["Short title: 85-110 word explanation", "Short title: explanation", "Short title: explanation", "Short title: explanation", "Short title: explanation"]}}'
             ),
             expected_output=(
                 "A raw, parsable JSON object with keys: recommendation (Buy|Hold|Sell), "
                 "target_bias (bull/base/bear case price targets with specific % moves), "
                 "summary (3-4 sentence executive summary with specific metrics and conviction level HIGH/MEDIUM/LOW), "
-                "thesis (list of 6 concise investment points grounded in supplied evidence), "
-                "action_items (list of 5 specific time-bound actions, each minimum 25 words, each with a price level or trigger condition)."
+                "thesis (list of 6 developed 140-170 word explanations grounded in supplied evidence), "
+                "action_items (list of 5 steps formatted Short title: explanation, with an 85-110 word explanation of action, trigger, rationale, contingency, and next check)."
             ),
         )
 
