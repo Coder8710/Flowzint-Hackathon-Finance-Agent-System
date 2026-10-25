@@ -222,7 +222,7 @@ def create_portfolio_agent(llm: str) -> "Agent":
         llm=llm,
         verbose=False,
         memory=False,
-        max_iter=15,
+        max_iter=6,
         max_rpm=10,
         cache=True,
         allow_delegation=False,

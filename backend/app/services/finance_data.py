@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import math
+import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from random import Random
 from typing import Any
 
@@ -26,8 +28,26 @@ class MarketSnapshot:
 class FinanceDataService:
     """Fetches market data, using yfinance when available and deterministic fallback data otherwise."""
 
+    def __init__(self, cache_ttl_seconds: int = 120) -> None:
+        self._cache_ttl_seconds = cache_ttl_seconds
+        self._snapshot_cache: dict[str, tuple[float, MarketSnapshot]] = {}
+
     async def get_snapshot(self, symbol: str) -> MarketSnapshot:
         symbol = symbol.upper().strip()
+        cached = self._snapshot_cache.get(symbol)
+        now = time.monotonic()
+        if cached and now - cached[0] < self._cache_ttl_seconds:
+            return cached[1]
+
+        snapshot = await asyncio.to_thread(self._load_snapshot, symbol)
+        self._snapshot_cache[symbol] = (time.monotonic(), snapshot)
+        if len(self._snapshot_cache) > 256:
+            oldest = sorted(self._snapshot_cache.items(), key=lambda item: item[1][0])[:64]
+            for old_symbol, _ in oldest:
+                self._snapshot_cache.pop(old_symbol, None)
+        return snapshot
+
+    def _load_snapshot(self, symbol: str) -> MarketSnapshot:
         try:
             import yfinance as yf  # type: ignore
 
@@ -90,7 +110,7 @@ class FinanceDataService:
         volatility = rng.uniform(0.012, 0.04)
         history: list[dict[str, float | str]] = []
         current = float(base)
-        start = datetime.utcnow() - timedelta(days=150)
+        start = datetime.now(timezone.utc) - timedelta(days=150)
 
         for day in range(120):
             seasonal = math.sin(day / 8) * volatility * current
